@@ -59,10 +59,10 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("CoP", &ezc3d::Modules::ForcePlatform::CoP)
         .function("Tz", &ezc3d::Modules::ForcePlatform::Tz);
 
-    class_<ezc3d::Modules::ForcePlatforms>("ForcePlatforms")
-        .constructor<const ezc3d::c3d&>()
-        .function("forcePlatforms", &ezc3d::Modules::ForcePlatforms::forcePlatforms)
-        .function("forcePlatform", &ezc3d::Modules::ForcePlatforms::forcePlatform);
+//    class_<ezc3d::Modules::ForcePlatforms>("ForcePlatforms")
+  //      .constructor<const ezc3d::c3d&>()
+    //    .function("forcePlatforms", &ezc3d::Modules::ForcePlatforms::forcePlatforms)
+      //  .function("forcePlatform", &ezc3d::Modules::ForcePlatforms::forcePlatform);
 
     // --- Header Bindings ---
     class_<ezc3d::Header>("Header")
