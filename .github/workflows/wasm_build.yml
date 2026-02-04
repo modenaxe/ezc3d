@@ -1,10 +1,15 @@
-name: WASM Build
+name: WASM Build and Deploy
 
 on:
   push:
     branches: [ main, dev ]
-  pull_request:
-    branches: [ main, dev ]
+  workflow_dispatch: # Allows manual trigger
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
   build-wasm:
@@ -20,21 +25,35 @@ jobs:
         version: 'latest'
 
     - name: Configure CMake for WASM
+      # Note: We use the linker flags here to ensure .js and .wasm are generated
       run: |
         emcmake cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
           -DBUILD_SHARED_LIBS=OFF \
           -DBUILD_EXAMPLE=OFF \
           -DBUILD_TESTS=OFF \
+          -DCMAKE_CXX_FLAGS="-std=c++17" \
           -DCMAKE_EXE_LINKER_FLAGS="--bind -s FORCE_FILESYSTEM=1 -s EXPORTED_RUNTIME_METHODS=['FS'] -s MODULARIZE=1 -s EXPORT_NAME='ezc3d' -s ALLOW_MEMORY_GROWTH=1"
-          
+
     - name: Build
+      # This generates ezc3d.js and ezc3d.wasm in the build/ directory
       run: emmake make -C build
 
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v4
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+
+    - name: Upload Artifacts for Pages
+      uses: actions/upload-pages-artifact@v3
       with:
-        name: ezc3d-wasm-web
-        path: |
-          build/ezc3d.js
-          build/ezc3d.wasm
+        path: 'build' # Uploads the build folder content to Pages
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build-wasm
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
