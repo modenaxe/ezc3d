@@ -6,7 +6,7 @@ using namespace emscripten;
 EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
 
     // =========================================================================
-    // 1. OPTIONS & MATH CORE (Merged with specialized constructors)
+    // 1. OPTIONS & MATH CORE
     // =========================================================================
     class_<ezc3d::Options>("Options")
         .constructor<bool, bool>()
@@ -52,36 +52,35 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .constructor<const ezc3d::Matrix&>();
 
     // =========================================================================
-    // 2. PARAMETERS HIERARCHY (Metadata)
+    // 2. PARAMETERS HIERARCHY (Corrected Namespaces and Overloads)
     // =========================================================================
     class_<ezc3d::ParametersNS::GroupNS::Parameter>("Parameter")
-        .function("name", &ezc3d::ParametersNS::GroupNS::Parameter::name)
-        .function("description", &ezc3d::ParametersNS::GroupNS::Parameter::description)
+        .function("name", select_overload<const std::string& () const>(&ezc3d::ParametersNS::GroupNS::Parameter::name))
+        .function("description", select_overload<const std::string& () const>(&ezc3d::ParametersNS::GroupNS::Parameter::description))
         .function("isLocked", &ezc3d::ParametersNS::GroupNS::Parameter::isLocked)
         .function("valuesAsString", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsString)
         .function("valuesAsDouble", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsDouble)
         .function("valuesAsInt", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsInt);
 
-    class_<ezc3d::ParametersNS::Group>("Group")
-        .function("name", &ezc3d::ParametersNS::Group::name)
-        .function("description", &ezc3d::ParametersNS::Group::description)
-        .function("isLocked", &ezc3d::ParametersNS::Group::isLocked)
-        .function("nbParameters", &ezc3d::ParametersNS::Group::nbParameters)
-        .function("parameter", select_overload<const ezc3d::ParametersNS::GroupNS::Parameter& (size_t) const>(&ezc3d::ParametersNS::Group::parameter))
-        .function("parameterByName", select_overload<const ezc3d::ParametersNS::GroupNS::Parameter& (const std::string &) const>(&ezc3d::ParametersNS::Group::parameter))
-        .function("isParameter", &ezc3d::ParametersNS::Group::isParameter);
+    // FIXED: Use the correct nested namespace for Group
+    class_<ezc3d::ParametersNS::GroupNS::Group>("Group")
+        .function("name", select_overload<const std::string& () const>(&ezc3d::ParametersNS::GroupNS::Group::name))
+        .function("description", select_overload<const std::string& () const>(&ezc3d::ParametersNS::GroupNS::Group::description))
+        .function("isLocked", &ezc3d::ParametersNS::GroupNS::Group::isLocked)
+        .function("nbParameters", &ezc3d::ParametersNS::GroupNS::Group::nbParameters)
+        .function("parameter", select_overload<const ezc3d::ParametersNS::GroupNS::Parameter& (size_t) const>(&ezc3d::ParametersNS::GroupNS::Group::parameter))
+        .function("parameterByName", select_overload<const ezc3d::ParametersNS::GroupNS::Parameter& (const std::string &) const>(&ezc3d::ParametersNS::GroupNS::Group::parameter))
+        .function("isParameter", &ezc3d::ParametersNS::GroupNS::Group::isParameter);
 
     class_<ezc3d::Parameters>("Parameters")
         .function("nbGroups", &ezc3d::Parameters::nbGroups)
         .function("isGroup", &ezc3d::Parameters::isGroup)
-        .function("group", select_overload<const ezc3d::ParametersNS::Group& (size_t) const>(&ezc3d::Parameters::group))
-        .function("groupByName", select_overload<const ezc3d::ParametersNS::Group& (const std::string &) const>(&ezc3d::Parameters::group));
+        .function("group", select_overload<const ezc3d::ParametersNS::GroupNS::Group& (size_t) const>(&ezc3d::Parameters::group))
+        .function("groupByName", select_overload<const ezc3d::ParametersNS::GroupNS::Group& (const std::string &) const>(&ezc3d::Parameters::group));
 
     // =========================================================================
-    // 3. DATA HIERARCHY (Frames -> Points/Analogs)
+    // 3. DATA HIERARCHY
     // =========================================================================
-
-    // --- POINTS ---
     class_<ezc3d::DataNS::Points3dNS::Point>("Point")
         .function("x", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::x))
         .function("y", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::y))
@@ -92,7 +91,6 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("nbPoints", &ezc3d::DataNS::Points3d::nbPoints)
         .function("point", select_overload<const ezc3d::DataNS::Points3dNS::Point& (size_t) const>(&ezc3d::DataNS::Points3d::point));
 
-    // --- ANALOGS ---
     class_<ezc3d::DataNS::AnalogsNS::Channel>("Channel")
         .function("data", select_overload<double() const>(&ezc3d::DataNS::AnalogsNS::Channel::data));
 
@@ -104,7 +102,6 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("nbSubframes", &ezc3d::DataNS::Analogs::nbSubframes)
         .function("subframe", select_overload<const ezc3d::DataNS::AnalogsNS::SubFrame& (size_t) const>(&ezc3d::DataNS::Analogs::subframe));
 
-    // --- FRAME & DATA ---
     class_<ezc3d::DataNS::Frame>("Frame")
         .function("points", &ezc3d::DataNS::Frame::points)
         .function("analogs", &ezc3d::DataNS::Frame::analogs);
@@ -114,7 +111,7 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("frame", select_overload<const ezc3d::DataNS::Frame& (size_t) const>(&ezc3d::Data::frame));
 
     // =========================================================================
-    // 4. MAIN CLASSES (C3D & Header)
+    // 4. MAIN CLASSES
     // =========================================================================
     class_<ezc3d::Header>("Header")
         .function("nbFrames", &ezc3d::Header::nbFrames)
@@ -138,7 +135,7 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("channelNames", &ezc3d::c3d::channelNames);
 
     // =========================================================================
-    // 5. MODULES (Force Platforms - Maintained from your version)
+    // 5. MODULES (Force Platforms)
     // =========================================================================
     class_<ezc3d::Modules::ForcePlatform>("ForcePlatform")
         .function("nbFrames", &ezc3d::Modules::ForcePlatform::nbFrames)
