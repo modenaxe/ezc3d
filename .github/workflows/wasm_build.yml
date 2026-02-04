@@ -12,7 +12,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4 # Updated to v4 for longevity
 
     - name: Setup Emscripten
       uses: mymindstorm/setup-emsdk@v12
@@ -23,8 +23,8 @@ jobs:
       run: emcc -v
 
     - name: Configure CMake for WASM
-      # We disable shared libs as WASM usually uses static linking
-      # We disable examples and tests to keep the build focused
+      # BUILD_SHARED_LIBS is set to OFF as WASM usually uses static linking
+      # BUILD_EXAMPLE and BUILD_TESTS are OFF to focus on the core library
       run: |
         emcmake cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
@@ -37,7 +37,7 @@ jobs:
       run: emmake make -C build
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4 # Fix: Updated from v3 to v4
       with:
         name: ezc3d-wasm
         path: |
