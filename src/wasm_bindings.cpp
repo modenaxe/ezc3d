@@ -4,6 +4,14 @@
 using namespace emscripten;
 
 EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
+
+
+// --- 1. Options Binding  ---
+    class_<ezc3d::Options>("Options")
+        .constructor<bool, bool>()
+        .constructor<>()
+        .property("ignoreBadFormatting", &ezc3d::Options::getIgnoreBadFormatting)
+        .property("keepParametersTrailingSpaces", &ezc3d::Options::getKeepParametersTrailingSpaces);
     
     // --- Matrix Bindings ---
     class_<ezc3d::Matrix>("Matrix")
@@ -59,10 +67,10 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("CoP", &ezc3d::Modules::ForcePlatform::CoP)
         .function("Tz", &ezc3d::Modules::ForcePlatform::Tz);
 
-//    class_<ezc3d::Modules::ForcePlatforms>("ForcePlatforms")
-  //      .constructor<const ezc3d::c3d&>()
-    //    .function("forcePlatforms", &ezc3d::Modules::ForcePlatforms::forcePlatforms)
-      //  .function("forcePlatform", &ezc3d::Modules::ForcePlatforms::forcePlatform);
+    class_<ezc3d::Modules::ForcePlatforms>("ForcePlatforms")
+        .constructor<const ezc3d::c3d&>()
+        .function("forcePlatforms", &ezc3d::Modules::ForcePlatforms::forcePlatforms)
+        .function("forcePlatform", &ezc3d::Modules::ForcePlatforms::forcePlatform);
 
     // --- Header Bindings ---
     class_<ezc3d::Header>("Header")
@@ -81,13 +89,6 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("z", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::z))
         .function("residual", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::residual));
 
-    // --- Options
-    class_<ezc3d::Options>("Options")
-    .constructor<>()
-    //.property("verbose", &ezc3d::Options::verbose, &ezc3d::Options::setVerbose)
-    .property("keepResidials", &ezc3d::Options::keepResidials, &ezc3d::Options::setKeepResidials)
-    .property("ignoreBadFormatting", &ezc3d::Options::ignoreBadFormatting, &ezc3d::Options::setIgnoreBadFormatting);
-    
     // --- Main C3D Binding ---
     class_<ezc3d::c3d>("c3d")
         .constructor<>()
