@@ -59,6 +59,7 @@ set(SRC_LIST
     src/RotationsInfo.cpp
     src/RotationsSubframe.cpp
     src/modules/ForcePlatforms.cpp
+    src/wasm_bindings.cpp
 )
 
 add_library(${PROJECT_NAME} ${SRC_LIST})
