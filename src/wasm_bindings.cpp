@@ -4,11 +4,6 @@
 using namespace emscripten;
 
 EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
-
-    class_<ezc3d::c3d>("c3d")
-        .constructor<>()                 // Add this for 'new module.c3d()'
-        .constructor<std::string>()      // Existing file-loading constructor
-        .function("write", &ezc3d::c3d::write);
     // --- Math Bindings ---
     // Note: Vector3d uses double, not float
     class_<ezc3d::Vector3d>("Vector3d")
@@ -57,8 +52,11 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
 
     // --- Main C3D Binding ---
     class_<ezc3d::c3d>("c3d")
-        .constructor<std::string>()
+        .constructor<>()                 
+        .constructor<std::string>()      
+        .function("write", &ezc3d::c3d::write)
         .function("header", &ezc3d::c3d::header)
+        .function("parameters", &ezc3d::c3d::parameters)
         .function("pointNames", &ezc3d::c3d::pointNames)
         .function("channelNames", &ezc3d::c3d::channelNames);
 
