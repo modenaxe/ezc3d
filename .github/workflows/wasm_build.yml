@@ -1,0 +1,44 @@
+name: WASM Build
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  build-wasm:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Emscripten
+      uses: mymindstorm/setup-emsdk@v12
+      with:
+        version: 'latest'
+
+    - name: Verify Emscripten
+      run: emcc -v
+
+    - name: Configure CMake for WASM
+      # We disable shared libs as WASM usually uses static linking
+      # We disable examples and tests to keep the build focused
+      run: |
+        emcmake cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DBUILD_EXAMPLE=OFF \
+          -DBUILD_TESTS=OFF \
+          -DCMAKE_CXX_FLAGS="-s EXPORT_ALL=1 -s LINKABLE=1"
+
+    - name: Build
+      run: emmake make -C build
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ezc3d-wasm
+        path: |
+          build/libezc3d.a
