@@ -5,15 +5,15 @@ using namespace emscripten;
 
 EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
 
-
-// --- 1. Options Binding  ---
+    // =========================================================================
+    // 1. OPTIONS & MATH CORE (Merged with specialized constructors)
+    // =========================================================================
     class_<ezc3d::Options>("Options")
         .constructor<bool, bool>()
         .constructor<>()
         .property("ignoreBadFormatting", &ezc3d::Options::getIgnoreBadFormatting)
         .property("keepParametersTrailingSpaces", &ezc3d::Options::getKeepParametersTrailingSpaces);
-    
-    // --- Matrix Bindings ---
+
     class_<ezc3d::Matrix>("Matrix")
         .constructor<>()
         .constructor<size_t, size_t>()
@@ -26,7 +26,6 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("setOnes", &ezc3d::Matrix::setOnes)
         .function("setIdentity", &ezc3d::Matrix::setIdentity);
 
-    // --- Vector3d Bindings (with Matrix inheritance) ---
     class_<ezc3d::Vector3d, base<ezc3d::Matrix>>("Vector3d")
         .constructor<>()
         .constructor<double, double, double>()
@@ -42,7 +41,6 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("norm", &ezc3d::Vector3d::norm)
         .function("normalize", &ezc3d::Vector3d::normalize);
 
-    // --- Specialized Matrix Bindings ---
     class_<ezc3d::Matrix33, base<ezc3d::Matrix>>("Matrix33")
         .constructor<>()
         .constructor<double, double, double, double, double, double, double, double, double>()
@@ -53,7 +51,95 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .constructor<double, double, double, double, double, double, double, double, double, double, double, double, double, double, double, double>()
         .constructor<const ezc3d::Matrix&>();
 
-    // --- Force Platform Bindings ---
+    // =========================================================================
+    // 2. PARAMETERS HIERARCHY (Metadata)
+    // =========================================================================
+    class_<ezc3d::ParametersNS::GroupNS::Parameter>("Parameter")
+        .function("name", &ezc3d::ParametersNS::GroupNS::Parameter::name)
+        .function("description", &ezc3d::ParametersNS::GroupNS::Parameter::description)
+        .function("isLocked", &ezc3d::ParametersNS::GroupNS::Parameter::isLocked)
+        .function("valuesAsString", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsString)
+        .function("valuesAsDouble", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsDouble)
+        .function("valuesAsInt", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsInt);
+
+    class_<ezc3d::ParametersNS::Group>("Group")
+        .function("name", &ezc3d::ParametersNS::Group::name)
+        .function("description", &ezc3d::ParametersNS::Group::description)
+        .function("isLocked", &ezc3d::ParametersNS::Group::isLocked)
+        .function("nbParameters", &ezc3d::ParametersNS::Group::nbParameters)
+        .function("parameter", select_overload<const ezc3d::ParametersNS::GroupNS::Parameter& (size_t) const>(&ezc3d::ParametersNS::Group::parameter))
+        .function("parameterByName", select_overload<const ezc3d::ParametersNS::GroupNS::Parameter& (const std::string &) const>(&ezc3d::ParametersNS::Group::parameter))
+        .function("isParameter", &ezc3d::ParametersNS::Group::isParameter);
+
+    class_<ezc3d::Parameters>("Parameters")
+        .function("nbGroups", &ezc3d::Parameters::nbGroups)
+        .function("isGroup", &ezc3d::Parameters::isGroup)
+        .function("group", select_overload<const ezc3d::ParametersNS::Group& (size_t) const>(&ezc3d::Parameters::group))
+        .function("groupByName", select_overload<const ezc3d::ParametersNS::Group& (const std::string &) const>(&ezc3d::Parameters::group));
+
+    // =========================================================================
+    // 3. DATA HIERARCHY (Frames -> Points/Analogs)
+    // =========================================================================
+
+    // --- POINTS ---
+    class_<ezc3d::DataNS::Points3dNS::Point>("Point")
+        .function("x", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::x))
+        .function("y", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::y))
+        .function("z", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::z))
+        .function("residual", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::residual));
+
+    class_<ezc3d::DataNS::Points3d>("Points")
+        .function("nbPoints", &ezc3d::DataNS::Points3d::nbPoints)
+        .function("point", select_overload<const ezc3d::DataNS::Points3dNS::Point& (size_t) const>(&ezc3d::DataNS::Points3d::point));
+
+    // --- ANALOGS ---
+    class_<ezc3d::DataNS::AnalogsNS::Channel>("Channel")
+        .function("data", select_overload<double() const>(&ezc3d::DataNS::AnalogsNS::Channel::data));
+
+    class_<ezc3d::DataNS::AnalogsNS::SubFrame>("SubFrame")
+        .function("nbChannels", &ezc3d::DataNS::AnalogsNS::SubFrame::nbChannels)
+        .function("channel", select_overload<const ezc3d::DataNS::AnalogsNS::Channel& (size_t) const>(&ezc3d::DataNS::AnalogsNS::SubFrame::channel));
+
+    class_<ezc3d::DataNS::Analogs>("Analogs")
+        .function("nbSubframes", &ezc3d::DataNS::Analogs::nbSubframes)
+        .function("subframe", select_overload<const ezc3d::DataNS::AnalogsNS::SubFrame& (size_t) const>(&ezc3d::DataNS::Analogs::subframe));
+
+    // --- FRAME & DATA ---
+    class_<ezc3d::DataNS::Frame>("Frame")
+        .function("points", &ezc3d::DataNS::Frame::points)
+        .function("analogs", &ezc3d::DataNS::Frame::analogs);
+
+    class_<ezc3d::Data>("Data")
+        .function("nbFrames", &ezc3d::Data::nbFrames)
+        .function("frame", select_overload<const ezc3d::DataNS::Frame& (size_t) const>(&ezc3d::Data::frame));
+
+    // =========================================================================
+    // 4. MAIN CLASSES (C3D & Header)
+    // =========================================================================
+    class_<ezc3d::Header>("Header")
+        .function("nbFrames", &ezc3d::Header::nbFrames)
+        .function("frameRate", select_overload<float() const>(&ezc3d::Header::frameRate))
+        .function("set_frameRate", select_overload<void(float)>(&ezc3d::Header::frameRate))
+        .function("nb3dPoints", select_overload<size_t() const>(&ezc3d::Header::nb3dPoints))
+        .function("nbAnalogs", select_overload<size_t() const>(&ezc3d::Header::nbAnalogs))
+        .function("nbAnalogByFrame", select_overload<size_t() const>(&ezc3d::Header::nbAnalogByFrame))
+        .function("firstFrame", select_overload<size_t() const>(&ezc3d::Header::firstFrame))
+        .function("lastFrame", select_overload<size_t() const>(&ezc3d::Header::lastFrame));
+
+    class_<ezc3d::c3d>("c3d")
+        .constructor<>()
+        .constructor<std::string>()
+        .constructor<std::string, const ezc3d::Options&>() 
+        .function("write", &ezc3d::c3d::write)
+        .function("header", &ezc3d::c3d::header)
+        .function("parameters", &ezc3d::c3d::parameters)
+        .function("data", &ezc3d::c3d::data)
+        .function("pointNames", &ezc3d::c3d::pointNames)
+        .function("channelNames", &ezc3d::c3d::channelNames);
+
+    // =========================================================================
+    // 5. MODULES (Force Platforms - Maintained from your version)
+    // =========================================================================
     class_<ezc3d::Modules::ForcePlatform>("ForcePlatform")
         .function("nbFrames", &ezc3d::Modules::ForcePlatform::nbFrames)
         .function("forceUnit", &ezc3d::Modules::ForcePlatform::forceUnit)
@@ -72,38 +158,13 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("forcePlatforms", &ezc3d::Modules::ForcePlatforms::forcePlatforms)
         .function("forcePlatform", &ezc3d::Modules::ForcePlatforms::forcePlatform);
 
-    // --- Header Bindings ---
-    class_<ezc3d::Header>("Header")
-        .function("nbFrames", &ezc3d::Header::nbFrames)
-        .function("frameRate", select_overload<float() const>(&ezc3d::Header::frameRate))
-        .function("set_frameRate", select_overload<void(float)>(&ezc3d::Header::frameRate))
-        .function("nb3dPoints", select_overload<size_t() const>(&ezc3d::Header::nb3dPoints))
-        .function("nbAnalogs", select_overload<size_t() const>(&ezc3d::Header::nbAnalogs))
-        .function("firstFrame", select_overload<size_t() const>(&ezc3d::Header::firstFrame))
-        .function("lastFrame", select_overload<size_t() const>(&ezc3d::Header::lastFrame));
-
-    // --- Data Point Bindings ---
-    class_<ezc3d::DataNS::Points3dNS::Point>("Point")
-        .function("x", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::x))
-        .function("y", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::y))
-        .function("z", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::z))
-        .function("residual", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::residual));
-
-    // --- Main C3D Binding ---
-    class_<ezc3d::c3d>("c3d")
-        .constructor<>()
-        .constructor<std::string>()
-        .function("write", &ezc3d::c3d::write)
-        .function("header", &ezc3d::c3d::header)
-        .function("parameters", &ezc3d::c3d::parameters)
-        .function("data", &ezc3d::c3d::data)
-        .function("pointNames", &ezc3d::c3d::pointNames)
-        .function("channelNames", &ezc3d::c3d::channelNames);
-
-    // --- Vector Registrations ---
+    // =========================================================================
+    // 6. VECTOR REGISTRATIONS
+    // =========================================================================
     register_vector<std::string>("StringVector");
-    register_vector<ezc3d::Vector3d>("Vector3dVector");
     register_vector<double>("DoubleVector");
+    register_vector<int>("IntVector");
+    register_vector<ezc3d::Vector3d>("Vector3dVector");
     register_vector<ezc3d::Modules::ForcePlatform>("ForcePlatformVector");
     register_vector<ezc3d::DataNS::Points3dNS::Point>("PointVector");
 }
