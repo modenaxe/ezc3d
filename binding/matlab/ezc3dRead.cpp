@@ -7,30 +7,43 @@
 #include "Header.h"
 #include "Parameters.h"
 #include "Data.h"
+#include "RotationsInfo.h"
 #include "modules/ForcePlatforms.h"
+#include <string.h>
+#include <cmath>
 
 void mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
 {
     // Check inputs and outputs
-    if (nrhs > 1)
-        mexErrMsgTxt("Input argument must be a file path string or "
+    if (nrhs > 2)
+        mexErrMsgTxt("Input argument must be a file path string (with a boolean "
+                     "for accepting bad formatting files) or no input for a "
+                     "valid empty structure.");
+    if (nrhs >= 1 && !mxIsChar(prhs[0]))
+        mexErrMsgTxt("First input argument must be a file path string or "
                      "no input for a valid empty structure.");
-    if (nrhs == 1 && mxIsChar(prhs[0]) != 1)
-        mexErrMsgTxt("Input argument must be a file path string or "
-                     "no input for a valid empty structure.");
+    if (nrhs >= 2 && !mxIsLogical(prhs[1]))
+        mexErrMsgTxt("Second input argument must be a bool for allowing to load "
+                     "bad formatted c3d. Warning this can generate a segmentation "
+                     "fault.");
+
     if (nlhs > 2)
         mexErrMsgTxt("Only two outputs are available");
 
     // Receive the path
     std::string path;
-    if (nrhs == 1){
+    if (nrhs >= 1){
         char *buffer = mxArrayToString(prhs[0]);
         path = buffer;
         mxFree(buffer);
     }
+    bool ignoreBadFormatting = false;
+    if (nrhs >= 2){
+        ignoreBadFormatting = toBool(prhs[1]);
+    }
 
     // Preparer the first layer of the output structure
-    const char *globalFieldsNames[] = {"header", "parameters","data"};
+    const char *globalFieldsNames[] = {"header", "parameters", "data"};
     int headerIdx = 0;
     int parametersIdx = 1;
     int dataIdx = 2;
@@ -52,12 +65,12 @@ void mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
             c3d = new ezc3d::c3d;
         }
         else {
-            c3d = new ezc3d::c3d(path);
+            c3d = new ezc3d::c3d(path, ignoreBadFormatting);
         }
 
         // Fill the header
         {
-        const char *headerFieldsNames[] = {"points", "analogs", "events"};
+        const char *headerFieldsNames[] = {"points", "analogs", "rotations", "events"};
         mwSize headerFieldsDims[2] = {1, 1};
         mxArray * headerStruct = mxCreateStructArray(
                     2, headerFieldsDims,
@@ -66,8 +79,8 @@ void mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         mxSetFieldByNumber(plhs[0], 0, headerIdx, headerStruct);
             // fill points
             {
-                const char *pointsFieldsNames[] = {"size", "frameRate",
-                                                   "firstFrame", "lastFrame"};
+                const char *pointsFieldsNames[] = {
+                    "size", "frameRate", "firstFrame", "lastFrame"};
                 mwSize pointFieldsDims[2] = {1, 1};
                 mxArray * pointsStruct = mxCreateStructArray(
                             2, pointFieldsDims,
@@ -84,8 +97,8 @@ void mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
             }
             // fill analogs
             {
-                const char *analogsFieldsNames[] = {"size", "frameRate",
-                                                    "firstFrame", "lastFrame"};
+                const char *analogsFieldsNames[] = {
+                    "size", "frameRate", "firstFrame", "lastFrame"};
                 mwSize analogsFieldsDims[2] = {1, 1};
                 mxArray * analogsStruct = mxCreateStructArray(
                             2, analogsFieldsDims,
@@ -105,20 +118,39 @@ void mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
                                 c3d->header().nbAnalogByFrame()
                                 * (c3d->header().lastFrame()+1));
             }
+            // fill rotations
+            {
+                const char *rotationsFieldsNames[] = {
+                    "size", "frameRate", "firstFrame", "lastFrame"};
+                mwSize rotationsFieldsDims[2] = {1, 1};
+                mxArray * rotationsStruct = mxCreateStructArray(
+                            2, rotationsFieldsDims,
+                            sizeof(rotationsFieldsNames) / sizeof(*rotationsFieldsNames),
+                            rotationsFieldsNames);
+                mxSetFieldByNumber(headerStruct, 0, 2, rotationsStruct);
+
+                ezc3d::DataNS::RotationNS::Info rotationsInfo(*c3d);
+                fillMatlabField(rotationsStruct, 0, rotationsInfo.used());
+                fillMatlabField(rotationsStruct, 1,
+                    static_cast<mxDouble>(rotationsInfo.ratio() * c3d->header().frameRate()));
+                fillMatlabField(rotationsStruct, 2,
+                    rotationsInfo.ratio() * c3d->header().firstFrame()+1);
+                fillMatlabField(rotationsStruct, 3,
+                    rotationsInfo.ratio() * (c3d->header().lastFrame()+1));
+            }
 
             // fill events
             {
-                const char *eventsFieldsNames[] = {"size", "eventsTime",
-                                                   "eventsLabel"};
+                const char *eventsFieldsNames[] = {
+                    "size", "eventsTime", "eventsLabel"};
                 mwSize eventsFieldsDims[2] = {1, 1};
                 mxArray * eventsStruct = mxCreateStructArray(
                             2, eventsFieldsDims,
                             sizeof(eventsFieldsNames) / sizeof(*eventsFieldsNames),
                             eventsFieldsNames);
-                mxSetFieldByNumber(headerStruct, 0, 2, eventsStruct);
+                mxSetFieldByNumber(headerStruct, 0, 3, eventsStruct);
 
-                fillMatlabField(eventsStruct, 0, static_cast<int>(
-                                    c3d->header().eventsTime().size()));
+                fillMatlabField(eventsStruct, 0, static_cast<int>(c3d->header().eventsTime().size()));
                 fillMatlabField(eventsStruct, 1, c3d->header().eventsTime());
                 fillMatlabField(eventsStruct, 2, c3d->header().eventsLabel());
             }
@@ -201,10 +233,10 @@ void mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
 
         // Fill the data
         {
-        const char *dataFieldsNames[] = {"points", "meta_points", "analogs"};
-        mwSize dataFieldsDims[3] = {1, 1, 1};
+        const char *dataFieldsNames[] = {"points", "meta_points", "analogs", "rotations"};
+        mwSize dataFieldsDims[4] = {1, 1, 1, 1};
         mxArray * dataStruct =
-                mxCreateStructArray(3, dataFieldsDims, 3, dataFieldsNames);
+                mxCreateStructArray(4, dataFieldsDims, 4, dataFieldsNames);
         mxSetFieldByNumber(plhs[0], 0, dataIdx, dataStruct);
 
             // Fill the point data and analogous data
@@ -235,56 +267,81 @@ void mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
                         static_cast<size_t>(
                             nFramesPoints * c3d->header().nbAnalogByFrame()));
             size_t nAnalogs(c3d->header().nbAnalogs());
-            size_t nSubFrames(c3d->header().nbAnalogByFrame());
+            size_t nSubFramesAnalogs (c3d->header().nbAnalogByFrame());
             mxArray * dataAnalogs = mxCreateDoubleMatrix(
                         nFramesAnalogs, nAnalogs, mxREAL);
             double * valAnalogs = mxGetPr(dataAnalogs);
 
-            for (size_t f=0; f<nFramesPoints; ++f) {
+            ezc3d::DataNS::RotationNS::Info rotationsInfo(*c3d);
+            size_t nRotations(rotationsInfo.used());
+            size_t nFramesRotations(static_cast<mwSize>(c3d->header().nbFrames() * rotationsInfo.ratio()));
+            size_t nSubFramesRotations(static_cast<mwSize>(rotationsInfo.ratio()));
+            size_t nDataRotations[4] = {4, 4, nRotations, nFramesRotations};
+            mxArray* dataRotations = mxCreateNumericArray(4, nDataRotations, mxDOUBLE_CLASS, mxREAL);
+            double* valRotations = mxGetPr(dataRotations);
+
+            for (size_t f = 0; f < nFramesPoints; ++f) {
                 ezc3d::DataNS::Frame frame(c3d->data().frame(f));
 
                 // Points side
-                for (size_t p = 0; p < frame.points().nbPoints(); ++p){
+                for (size_t p = 0; p < frame.points().nbPoints(); ++p) {
                     const ezc3d::DataNS::Points3dNS::Point& point(
-                                frame.points().point(p));
-                    if (point.residual() < 0){
-                        valPoints[f*nPoints*3+3*p+0] =
-                                static_cast<double>(NAN);
-                        valPoints[f*nPoints*3+3*p+1] =
-                                static_cast<double>(NAN);
-                        valPoints[f*nPoints*3+3*p+2] =
-                                static_cast<double>(NAN);
+                        frame.points().point(p));
+                    if (point.residual() < 0) {
+                        valPoints[f * nPoints * 3 + 3 * p + 0] =
+                            static_cast<double>(NAN);
+                        valPoints[f * nPoints * 3 + 3 * p + 1] =
+                            static_cast<double>(NAN);
+                        valPoints[f * nPoints * 3 + 3 * p + 2] =
+                            static_cast<double>(NAN);
                     }
                     else {
-                        valPoints[f*nPoints*3+3*p+0] =
-                                static_cast<double>(point.x());
-                        valPoints[f*nPoints*3+3*p+1] =
-                                static_cast<double>(point.y());
-                        valPoints[f*nPoints*3+3*p+2] =
-                                static_cast<double>(point.z());
+                        valPoints[f * nPoints * 3 + 3 * p + 0] =
+                            static_cast<double>(point.x());
+                        valPoints[f * nPoints * 3 + 3 * p + 1] =
+                            static_cast<double>(point.y());
+                        valPoints[f * nPoints * 3 + 3 * p + 2] =
+                            static_cast<double>(point.z());
                     }
 
                     // Metadata for points
-                    valMetaResiduals[f*nPoints+p] = static_cast<double>(point.residual());
+                    valMetaResiduals[f * nPoints + p] = static_cast<double>(point.residual());
                     std::vector<bool> cameraMasks(point.cameraMask());
-                    for (size_t cam = 0; cam < 7; ++cam){
-                        valMetaCameraMasks[f*nPoints*7+7*p+cam] = cameraMasks[cam];
+                    for (size_t cam = 0; cam < 7; ++cam) {
+                        valMetaCameraMasks[f * nPoints * 7 + 7 * p + cam] = cameraMasks[cam];
                     }
                 }
 
 
                 // Analogs side
-                for (size_t sf=0; sf<frame.analogs().nbSubframes(); ++sf)
-                    for (size_t c=0; c<frame.analogs().subframe(sf).nbChannels()
-                         ; ++c)
-                        valAnalogs[c*nSubFrames*nFramesPoints + sf + f*nSubFrames] =
-                                static_cast<double>(
-                                    frame.analogs().subframe(sf)
-                                    .channel(c).data());
+                for (size_t sf = 0; sf < frame.analogs().nbSubframes(); ++sf)
+                    for (size_t c = 0; c < frame.analogs().subframe(sf).nbChannels(); ++c)
+                        valAnalogs[c * nSubFramesAnalogs * nFramesPoints + sf + f * nSubFramesAnalogs] =
+                        static_cast<double>(
+                            frame.analogs().subframe(sf)
+                            .channel(c).data());
+
+
+                // Rotations side
+                for (size_t sf = 0; sf < frame.rotations().nbSubframes(); ++sf)
+                    for (size_t r = 0; r < frame.rotations().subframe(sf).nbRotations(); ++r)
+                    {
+                        const ezc3d::DataNS::RotationNS::Rotation& current(frame.rotations().subframe(sf).rotation(r));
+                        for (size_t i = 0; i < 4; ++i)
+                            for (size_t j = 0; j < 4; ++j) 
+                                valRotations[
+                                    f * nSubFramesRotations * 16 * nRotations +
+                                    sf * 16 * nRotations +
+                                    r * 16 + 
+                                    i * 4 +
+                                    j
+                                ] = current(j, i);
+                    }
             }
             mxSetFieldByNumber(dataStruct, 0, 0, dataPoints);
             mxSetFieldByNumber(dataStruct, 0, 1, dataMetaPointsStruct);
             mxSetFieldByNumber(dataStruct, 0, 2, dataAnalogs);
+            mxSetFieldByNumber(dataStruct, 0, 3, dataRotations);
             }
         }
 
@@ -300,6 +357,7 @@ void mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
                         2, globalPlatFormDims,
                         sizeof(forcePlatformNames) / sizeof(*forcePlatformNames),
                         forcePlatformNames);
+
             for (size_t i=0; i<all_pf.forcePlatforms().size(); ++i){
                 auto& pf(all_pf.forcePlatform(i));
 

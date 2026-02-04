@@ -2,6 +2,8 @@
 #include <gtest/gtest.h>
 
 #include "ezc3d_all.h"
+#include <cmath>
+#include <stdexcept>
 
 enum HEADER_TYPE{
     ALL,
@@ -37,7 +39,7 @@ struct c3dTestStruct{
     std::vector<std::string> analogNames;
 };
 
-void fillC3D(c3dTestStruct& c3dStruc, bool withPoints, bool withAnalogs){
+void fillC3D(c3dTestStruct& c3dStruc, bool withPoints, bool withAnalogs, int nFrames = 10){
     // Setup some variables
     if (withPoints){
         c3dStruc.pointNames = {"point1", "point2", "point3"};
@@ -57,7 +59,7 @@ void fillC3D(c3dTestStruct& c3dStruc, bool withPoints, bool withAnalogs){
             c3dStruc.c3d.analog(c3dStruc.analogNames[a]);
     }
 
-    c3dStruc.nFrames = 10;
+    c3dStruc.nFrames = nFrames;
     c3dStruc.pointFrameRate = 100;
     if (withPoints){
         ezc3d::ParametersNS::GroupNS::Parameter pointRate("RATE");
@@ -74,9 +76,11 @@ void fillC3D(c3dTestStruct& c3dStruc, bool withPoints, bool withAnalogs){
                 static_cast<double>(c3dStruc.analogFrameRate)});
         c3dStruc.c3d.parameter("ANALOG", analogRate);
     }
+
+    std::vector<ezc3d::DataNS::Frame> frames;
     for (size_t f = 0; f < c3dStruc.nFrames; ++f){
         ezc3d::DataNS::Frame frame;
-
+    
         ezc3d::DataNS::Points3dNS::Points pts;
         if (withPoints){
             for (size_t m = 0; m < c3dStruc.nPoints; ++m){
@@ -95,7 +99,7 @@ void fillC3D(c3dTestStruct& c3dStruc, bool withPoints, bool withAnalogs){
                 ezc3d::DataNS::AnalogsNS::SubFrame subframes;
                 for (size_t c = 0; c < c3dStruc.nAnalogs; ++c){
                     ezc3d::DataNS::AnalogsNS::Channel channel;
-                    channel.data(static_cast<float>(2*f+3*sf+4*c+1) / static_cast<float>(7.0)); // Generate random data
+                    channel.data(static_cast<float>(2*f+3*sf+4*c+1) / 7.0f); // Generate random data
                     subframes.channel(channel);
                 }
                 analogs.subframe(subframes);
@@ -108,8 +112,10 @@ void fillC3D(c3dTestStruct& c3dStruc, bool withPoints, bool withAnalogs){
             frame.add(pts);
         else if (withAnalogs)
             frame.add(analogs);
-        c3dStruc.c3d.frame(frame);
+        
+        frames.push_back(frame);
     }
+    c3dStruc.c3d.frames(frames);
 }
 
 void defaultHeaderTest(const ezc3d::c3d& new_c3d, HEADER_TYPE type = HEADER_TYPE::ALL){
@@ -297,6 +303,14 @@ void defaultParametersTest(const ezc3d::c3d& new_c3d, PARAMETER_TYPE type){
     }
 }
 
+void testPrintingCall(const ezc3d::c3d& c3d){
+    std::streambuf *old = std::cout.rdbuf(); // Save cout direction
+    std::stringstream ss; // create a redirection
+    std::cout.rdbuf (ss.rdbuf());       // <-- redirect to null
+    c3d.print();
+    std::cout.rdbuf (old);              // <-- restore the old direction
+}
+
 TEST(String, unittest){
     EXPECT_STREQ(ezc3d::toUpper("toUpper").c_str(), "TOUPPER");
 }
@@ -324,6 +338,44 @@ TEST(initialize, noC3D){
     EXPECT_THROW(ezc3d::c3d("ThereIsNoC3dThere.c3d"), std::ios_base::failure);
 }
 
+TEST(parametrizedC3d, zeroAndOneBasedFirstFrameValue) {
+    c3dTestStruct new_c3d;
+    fillC3D(new_c3d, true, false);
+    std::string savePath("temporary.c3d");
+
+    int firstFramePositionInFile = 6 * ezc3d::BYTE;
+
+    // First frame is 1 (standard C3D)
+    {
+        new_c3d.c3d.parametrizedWrite(savePath.c_str(), ezc3d::WRITE_FORMAT::DEFAULT, false);
+
+        // Check the byte corresponding to the first frame to make sure it is a one
+        std::fstream c3d_file(savePath.c_str(), std::ofstream::in);
+        c3d_file.seekg(firstFramePositionInFile);
+        int firstFrame = new_c3d.c3d.readInt(ezc3d::PROCESSOR_TYPE::INTEL, c3d_file, ezc3d::BYTE);
+        c3d_file.seekg(firstFramePositionInFile + 2);
+        int lastFrame = new_c3d.c3d.readInt(ezc3d::PROCESSOR_TYPE::INTEL, c3d_file, ezc3d::BYTE);
+        c3d_file.close();
+        EXPECT_EQ(firstFrame, 1);
+        EXPECT_EQ(lastFrame, 10);
+    }
+
+    // First frame is 0 (non-standard C3D)
+    {
+        new_c3d.c3d.parametrizedWrite(savePath.c_str(), ezc3d::WRITE_FORMAT::DEFAULT, true);
+
+        // Check the byte corresponding to the first frame to make sure it is a one
+        std::fstream c3d_file(savePath.c_str(), std::ofstream::in);
+        c3d_file.seekg(firstFramePositionInFile);
+        int firstFrame = new_c3d.c3d.readInt(ezc3d::PROCESSOR_TYPE::INTEL, c3d_file, ezc3d::BYTE);
+        c3d_file.seekg(firstFramePositionInFile + 2);
+        int lastFrame = new_c3d.c3d.readInt(ezc3d::PROCESSOR_TYPE::INTEL, c3d_file, ezc3d::BYTE);
+        c3d_file.close();
+        EXPECT_EQ(firstFrame, 0);
+        EXPECT_EQ(lastFrame, 9);
+    }
+}
+
 
 TEST(wrongC3D, wrongChecksumHeader){
     // Create an empty c3d
@@ -345,6 +397,8 @@ TEST(wrongC3D, wrongChecksumHeader){
 
 
 TEST(wrongC3D, wrongChecksumParameter){
+    // Checksum of paramaters should be diregarded
+
     // Create an empty c3d
     ezc3d::c3d new_c3d;
     std::string savePath("temporary.c3d");
@@ -357,38 +411,10 @@ TEST(wrongC3D, wrongChecksumParameter){
     c3d_file.write(reinterpret_cast<const char*>(&checksum), ezc3d::BYTE);
     c3d_file.close();
 
-    // Read the erroneous file
-    EXPECT_THROW(ezc3d::c3d new_c3d("temporary.c3d"), std::ios_base::failure);
-
-    // If a 0 is also on the byte before the checksum, this is a Qualisys C3D and should be read even if checksum si wrong
-    std::ofstream c3d_file2(savePath.c_str(), std::ofstream::in);
-    c3d_file2.seekp(static_cast<int>(256*ezc3d::DATA_TYPE::WORD*(new_c3d.header().parametersAddress()-1))); // move to the parameter checksum
-    int parameterStart(0x0);
-    c3d_file2.write(reinterpret_cast<const char*>(&parameterStart), ezc3d::BYTE);
-    c3d_file2.close();
-
-    // Read the Qualisys file
-    EXPECT_NO_THROW(ezc3d::c3d new_c3d("temporary.c3d"));
-
-    // Delete the file
-    remove(savePath.c_str());
-}
-
-TEST(wrongC3D, wrongNextparamParameter){
-    // Create an empty c3d
-    ezc3d::c3d new_c3d;
-    std::string savePath("temporary.c3d");
-    new_c3d.write(savePath.c_str());
-
-    // If a 0 is also on the byte before the checksum, this is a Qualisys C3D and should be read even if checksum si wrong
-    std::ofstream c3d_file(savePath.c_str(), std::ofstream::in);
-    c3d_file.seekp(static_cast<int>(256*ezc3d::DATA_TYPE::WORD*(new_c3d.header().parametersAddress()-1))); // move to the parameter checksum
-    int parameterStart(0x0);
-    c3d_file.write(reinterpret_cast<const char*>(&parameterStart), ezc3d::BYTE);
-    c3d_file.close();
-
-    // Read the erroneous file
-    EXPECT_THROW(ezc3d::c3d new_c3d("temporary.c3d"), std::ios_base::failure);
+    // Read the allegedly wrong file
+    ezc3d::c3d read_c3d("temporary.c3d");
+    EXPECT_EQ(read_c3d.parameters().checksum(), 0x50);
+    EXPECT_EQ(read_c3d.parameters().parametersStart(), 1);     
 
     // Delete the file
     remove(savePath.c_str());
@@ -870,7 +896,6 @@ TEST(c3dModifier, addPoints) {
     }
     remove(savepath.c_str());
 }
-
 
 TEST(c3dModifier, specificPoint){
     // Create an empty c3d
@@ -1672,6 +1697,124 @@ TEST(c3dFileIO, CreateWriteAndReadBackWithNan){
     EXPECT_TRUE(std::isnan(channel.data()));
 }
 
+TEST(c3dFileIO, writeLotOfFrames) {
+    // Create an empty c3d fill it with data and reopen
+    c3dTestStruct ref_c3d;
+    fillC3D(ref_c3d, true, false, 0xFFFF);
+
+    // Write the file
+    std::string savePath("temporary.c3d");
+    ref_c3d.c3d.write(savePath.c_str());
+
+    // Open it back and delete it
+    ezc3d::c3d read_c3d(savePath.c_str());
+    remove(savePath.c_str());
+
+    EXPECT_EQ(ref_c3d.c3d.header().nbFrames(), read_c3d.header().nbFrames());
+}
+
+TEST(c3dFileIO, readC3DWithRotation){
+    ezc3d::c3d c3d("c3dTestFiles/C3DRotationExample.c3d");
+
+    // Header test
+    // Point stuff
+    EXPECT_EQ(c3d.header().nb3dPoints(), 0);
+    EXPECT_EQ(c3d.header().nbMaxInterpGap(), 10);
+    EXPECT_FLOAT_EQ(c3d.header().scaleFactor(), -1.0f);
+    EXPECT_FLOAT_EQ(c3d.header().frameRate(), 85);
+
+    // Analog stuff
+    EXPECT_EQ(c3d.header().nbAnalogsMeasurement(), 0);
+    EXPECT_EQ(c3d.header().nbAnalogByFrame(), 0);
+    EXPECT_EQ(c3d.header().nbAnalogs(), 0);
+
+    // Parameter tests
+    EXPECT_EQ(c3d.parameters().checksum(), 80);
+    EXPECT_EQ(c3d.parameters().nbGroups(), 9);
+    EXPECT_EQ(c3d.parameters().group("ROTATION").parameter("USED").type(), ezc3d::INT);
+    EXPECT_EQ(c3d.parameters().group("ROTATION").parameter("USED").valuesAsInt().size(), 1);
+    EXPECT_EQ(c3d.parameters().group("ROTATION").parameter("USED").valuesAsInt()[0], 21);
+    EXPECT_EQ(c3d.parameters().group("ROTATION").parameter("DATA_START").type(), ezc3d::INT);
+    EXPECT_EQ(c3d.parameters().group("ROTATION").parameter("DATA_START").valuesAsInt().size(), 1);
+    EXPECT_EQ(c3d.parameters().group("ROTATION").parameter("DATA_START").valuesAsInt()[0], 6);
+    EXPECT_EQ(c3d.parameters().group("ROTATION").parameter("RATIO").type(), ezc3d::INT);
+    EXPECT_EQ(c3d.parameters().group("ROTATION").parameter("RATIO").valuesAsInt().size(), 1);
+    EXPECT_EQ(c3d.parameters().group("ROTATION").parameter("RATIO").valuesAsInt()[0], 1);
+    EXPECT_EQ(c3d.parameters().group("ROTATION").parameter("LABELS").type(), ezc3d::CHAR);
+    EXPECT_EQ(c3d.parameters().group("ROTATION").parameter("LABELS").valuesAsString().size(), 21);
+    EXPECT_EQ(c3d.parameters().group("ROTATION").parameter("DESCRIPTIONS").type(), ezc3d::CHAR);
+    EXPECT_EQ(c3d.parameters().group("ROTATION").parameter("DESCRIPTIONS").valuesAsString().size(), 21);
+
+    // DATA
+    EXPECT_EQ(c3d.data().nbFrames(), 340);
+    EXPECT_EQ(c3d.data().frame(0).rotations().subframe(0).nbRotations(), 21);
+
+    // Test some values randomly
+    EXPECT_FLOAT_EQ(c3d.data().frame(5).rotations().subframe(0).rotation(2)(2, 3), 931.63824);
+
+    // Test sum of all values
+    double sumValues(0);
+    for (const auto& frame : c3d.data().frames()){
+        for (const auto& subframe : frame.rotations().subframes()){
+            for (const auto& rot : subframe.rotations()){
+                if (rot.isValid()){
+                    sumValues += rot.sum();
+                }
+            }
+        }
+    }
+    EXPECT_FLOAT_EQ(sumValues, 9367047.137371358);
+
+    // Test printing of rotations
+    testPrintingCall(c3d);
+
+    // Write the file and read it back to test the rotations structure
+    std::string savePath("temporary.c3d");
+    c3d.write(savePath);
+    ezc3d::c3d c3dCopy(savePath);
+    remove(savePath.c_str());
+
+    // Header test
+
+    EXPECT_EQ(c3dCopy.header().nb3dPoints(), 0);
+    EXPECT_EQ(c3dCopy.header().nbMaxInterpGap(), 10);
+    EXPECT_FLOAT_EQ(c3dCopy.header().scaleFactor(), -1.0f);
+    EXPECT_FLOAT_EQ(c3dCopy.header().frameRate(), 85);
+
+    // Analog stuff
+    EXPECT_EQ(c3dCopy.header().nbAnalogsMeasurement(), 0);
+    EXPECT_EQ(c3dCopy.header().nbAnalogByFrame(), 0);
+    EXPECT_EQ(c3dCopy.header().nbAnalogs(), 0);
+
+    // Parameter tests
+    EXPECT_EQ(c3dCopy.parameters().checksum(), 80);
+    EXPECT_EQ(c3dCopy.parameters().nbGroups(), 10);
+    EXPECT_EQ(c3dCopy.parameters().group("ROTATION").parameter("USED").type(), ezc3d::INT);
+    EXPECT_EQ(c3dCopy.parameters().group("ROTATION").parameter("USED").valuesAsInt().size(), 1);
+    EXPECT_EQ(c3dCopy.parameters().group("ROTATION").parameter("USED").valuesAsInt()[0], 21);
+    EXPECT_EQ(c3dCopy.parameters().group("ROTATION").parameter("DATA_START").type(), ezc3d::INT);
+    EXPECT_EQ(c3dCopy.parameters().group("ROTATION").parameter("DATA_START").valuesAsInt().size(), 1);
+    EXPECT_EQ(c3dCopy.parameters().group("ROTATION").parameter("DATA_START").valuesAsInt()[0], 7);
+    EXPECT_EQ(c3dCopy.parameters().group("ROTATION").parameter("RATIO").type(), ezc3d::INT);
+    EXPECT_EQ(c3dCopy.parameters().group("ROTATION").parameter("RATIO").valuesAsInt().size(), 1);
+    EXPECT_EQ(c3dCopy.parameters().group("ROTATION").parameter("RATIO").valuesAsInt()[0], 1);
+    EXPECT_EQ(c3dCopy.parameters().group("ROTATION").parameter("LABELS").type(), ezc3d::CHAR);
+    EXPECT_EQ(c3dCopy.parameters().group("ROTATION").parameter("LABELS").valuesAsString().size(), 21);
+    EXPECT_EQ(c3dCopy.parameters().group("ROTATION").parameter("DESCRIPTIONS").type(), ezc3d::CHAR);
+    EXPECT_EQ(c3dCopy.parameters().group("ROTATION").parameter("DESCRIPTIONS").valuesAsString().size(), 21);
+
+    double sumValuesCopy(0);
+    for (const auto& frame : c3dCopy.data().frames()){
+        for (const auto& subframe : frame.rotations().subframes()){
+            for (const auto& rot : subframe.rotations()){
+                if (rot.isValid()){
+                    sumValuesCopy += rot.sum();
+                }
+            }
+        }
+    }
+    EXPECT_FLOAT_EQ(sumValues, sumValuesCopy);
+}
 
 TEST(c3dFileIO, readViconC3D){
     ezc3d::c3d Vicon("c3dTestFiles/Vicon.c3d");
@@ -1690,7 +1833,7 @@ TEST(c3dFileIO, readViconC3D){
     // Point stuff
     EXPECT_EQ(Vicon.header().nb3dPoints(), 51);
     EXPECT_EQ(Vicon.header().nbMaxInterpGap(), 0);
-    EXPECT_FLOAT_EQ(Vicon.header().scaleFactor(), static_cast<float>(-0.01));
+    EXPECT_FLOAT_EQ(Vicon.header().scaleFactor(), -0.01f);
     EXPECT_FLOAT_EQ(Vicon.header().frameRate(), 100);
 
     // Analog stuff
@@ -1731,7 +1874,7 @@ TEST(c3dFileIO, readViconC3D){
     EXPECT_EQ(Vicon.parameters().group("POINT").parameter("USED").valuesAsInt()[0], 51);
     EXPECT_EQ(Vicon.parameters().group("POINT").parameter("SCALE").type(), ezc3d::FLOAT);
     EXPECT_EQ(Vicon.parameters().group("POINT").parameter("SCALE").valuesAsDouble().size(), 1);
-    EXPECT_FLOAT_EQ(Vicon.parameters().group("POINT").parameter("SCALE").valuesAsDouble()[0], static_cast<float>(-0.0099999998));
+    EXPECT_FLOAT_EQ(Vicon.parameters().group("POINT").parameter("SCALE").valuesAsDouble()[0], -0.0099999998f);
     EXPECT_EQ(Vicon.parameters().group("POINT").parameter("RATE").type(), ezc3d::FLOAT);
     EXPECT_EQ(Vicon.parameters().group("POINT").parameter("RATE").valuesAsDouble().size(), 1);
     EXPECT_FLOAT_EQ(Vicon.parameters().group("POINT").parameter("RATE").valuesAsDouble()[0], 100);
@@ -1827,7 +1970,7 @@ TEST(c3dFileIO, readQualisysC3D){
     // Point stuff
     EXPECT_EQ(Qualisys.header().nb3dPoints(), 55);
     EXPECT_EQ(Qualisys.header().nbMaxInterpGap(), 10);
-    EXPECT_FLOAT_EQ(Qualisys.header().scaleFactor(), static_cast<float>(-0.0762322545));
+    EXPECT_FLOAT_EQ(Qualisys.header().scaleFactor(), -0.0762322545f);
     EXPECT_FLOAT_EQ(Qualisys.header().frameRate(), 200);
 
     // Analog stuff
@@ -1868,7 +2011,7 @@ TEST(c3dFileIO, readQualisysC3D){
     EXPECT_EQ(Qualisys.parameters().group("POINT").parameter("USED").valuesAsInt()[0], 55);
     EXPECT_EQ(Qualisys.parameters().group("POINT").parameter("SCALE").type(), ezc3d::FLOAT);
     EXPECT_EQ(Qualisys.parameters().group("POINT").parameter("SCALE").valuesAsDouble().size(), 1);
-    EXPECT_FLOAT_EQ(Qualisys.parameters().group("POINT").parameter("SCALE").valuesAsDouble()[0], static_cast<float>(-0.076232255));
+    EXPECT_FLOAT_EQ(Qualisys.parameters().group("POINT").parameter("SCALE").valuesAsDouble()[0], -0.076232255f);
     EXPECT_EQ(Qualisys.parameters().group("POINT").parameter("RATE").type(), ezc3d::FLOAT);
     EXPECT_EQ(Qualisys.parameters().group("POINT").parameter("RATE").valuesAsDouble().size(), 1);
     EXPECT_FLOAT_EQ(Qualisys.parameters().group("POINT").parameter("RATE").valuesAsDouble()[0], 200);
@@ -1932,7 +2075,6 @@ TEST(c3dFileIO, readQualisysC3D){
     }
 }
 
-
 TEST(c3dFileIO, readOptotrakC3D){
     ezc3d::c3d Optotrak("c3dTestFiles/Optotrak.c3d");
 
@@ -1950,7 +2092,7 @@ TEST(c3dFileIO, readOptotrakC3D){
     // Point stuff
     EXPECT_EQ(Optotrak.header().nb3dPoints(), 54);
     EXPECT_EQ(Optotrak.header().nbMaxInterpGap(), 0);
-    EXPECT_FLOAT_EQ(Optotrak.header().scaleFactor(), static_cast<float>(-7.8661418));
+    EXPECT_FLOAT_EQ(Optotrak.header().scaleFactor(), -7.8661418f);
     EXPECT_FLOAT_EQ(Optotrak.header().frameRate(), 30);
 
     // Analog stuff
@@ -1978,8 +2120,8 @@ TEST(c3dFileIO, readOptotrakC3D){
 
 
     EXPECT_EQ(Optotrak.header().firstFrame(), 0);
-    EXPECT_EQ(Optotrak.header().lastFrame(), 29);
-    EXPECT_EQ(Optotrak.header().nbFrames(), 30);
+    EXPECT_EQ(Optotrak.header().lastFrame(), 28);
+    EXPECT_EQ(Optotrak.header().nbFrames(), 29);
 
 
     // Parameter tests
@@ -1991,11 +2133,11 @@ TEST(c3dFileIO, readOptotrakC3D){
     EXPECT_EQ(Optotrak.parameters().group("POINT").parameter("USED").valuesAsInt()[0], 54);
     EXPECT_EQ(Optotrak.parameters().group("POINT").parameter("SCALE").type(), ezc3d::FLOAT);
     EXPECT_EQ(Optotrak.parameters().group("POINT").parameter("SCALE").valuesAsDouble().size(), 1);
-    EXPECT_FLOAT_EQ(Optotrak.parameters().group("POINT").parameter("SCALE").valuesAsDouble()[0], static_cast<float>(-7.8661418));
+    EXPECT_FLOAT_EQ(Optotrak.parameters().group("POINT").parameter("SCALE").valuesAsDouble()[0], -7.8661418f);
     EXPECT_EQ(Optotrak.parameters().group("POINT").parameter("RATE").type(), ezc3d::FLOAT);
     EXPECT_EQ(Optotrak.parameters().group("POINT").parameter("RATE").valuesAsDouble().size(), 1);
     EXPECT_FLOAT_EQ(Optotrak.parameters().group("POINT").parameter("RATE").valuesAsDouble()[0], 30);
-    EXPECT_EQ(Optotrak.parameters().group("POINT").parameter("FRAMES").valuesAsInt()[0], 30); // ignore because it changes if analog is present
+    EXPECT_EQ(Optotrak.parameters().group("POINT").parameter("FRAMES").valuesAsInt()[0], 29); // ignore because it changes if analog is present
     EXPECT_EQ(Optotrak.parameters().group("POINT").parameter("FRAMES").type(), ezc3d::INT);
     EXPECT_EQ(Optotrak.parameters().group("POINT").parameter("LABELS").type(), ezc3d::CHAR);
     EXPECT_EQ(Optotrak.parameters().group("POINT").parameter("LABELS").valuesAsString().size(), 54);
@@ -2008,8 +2150,88 @@ TEST(c3dFileIO, readOptotrakC3D){
     defaultParametersTest(Optotrak, PARAMETER_TYPE::FORCE_PLATFORM);
 
     // DATA
-    for (size_t f = 0; f < 30; ++f)
+    for (size_t f = 0; f < 29; ++f)
         EXPECT_EQ(Optotrak.data().frame(f).points().nbPoints(), 54);
+}
+
+TEST(c3dFileIO, readKistlerC3D) {
+    ezc3d::c3d Optotrak("c3dTestFiles/Kistler.c3d");
+
+    // Header test
+    // Generic stuff
+    EXPECT_EQ(Optotrak.header().checksum(), 80);
+    EXPECT_EQ(Optotrak.header().keyLabelPresent(), 0);
+    EXPECT_EQ(Optotrak.header().firstBlockKeyLabel(), 0);
+    EXPECT_EQ(Optotrak.header().fourCharPresent(), 0);
+    EXPECT_EQ(Optotrak.header().emptyBlock1(), 0);
+    EXPECT_EQ(Optotrak.header().emptyBlock2(), 0);
+    EXPECT_EQ(Optotrak.header().emptyBlock3(), 0);
+    EXPECT_EQ(Optotrak.header().emptyBlock4(), 0);
+
+    // Point stuff
+    EXPECT_EQ(Optotrak.header().nb3dPoints(), 0);
+    EXPECT_EQ(Optotrak.header().nbMaxInterpGap(), 0);
+    EXPECT_FLOAT_EQ(Optotrak.header().scaleFactor(), 1.f);
+    EXPECT_FLOAT_EQ(Optotrak.header().frameRate(), 0);
+
+    // Analog stuff
+    EXPECT_EQ(Optotrak.header().nbAnalogsMeasurement(), 16);
+    EXPECT_EQ(Optotrak.header().nbAnalogByFrame(), 1);
+    EXPECT_EQ(Optotrak.header().nbAnalogs(), 16);
+
+    // Event stuff
+    EXPECT_EQ(Optotrak.header().nbEvents(), 0);
+
+    EXPECT_EQ(Optotrak.header().eventsTime().size(), 18);
+    for (size_t e = 0; e < Optotrak.header().eventsTime().size(); ++e)
+        EXPECT_FLOAT_EQ(Optotrak.header().eventsTime(e), 0);
+    EXPECT_THROW(Optotrak.header().eventsTime(Optotrak.header().eventsTime().size()), std::out_of_range);
+
+    EXPECT_EQ(Optotrak.header().eventsLabel().size(), 18);
+    for (size_t e = 0; e < Optotrak.header().eventsLabel().size(); ++e)
+        EXPECT_STREQ(Optotrak.header().eventsLabel(e).c_str(), "");
+    EXPECT_THROW(Optotrak.header().eventsLabel(Optotrak.header().eventsLabel().size()), std::out_of_range);
+
+    EXPECT_EQ(Optotrak.header().eventsDisplay().size(), 9);
+    for (size_t e = 0; e < Optotrak.header().eventsDisplay().size(); ++e)
+        EXPECT_EQ(Optotrak.header().eventsDisplay(e), 0);
+    EXPECT_THROW(Optotrak.header().eventsDisplay(Optotrak.header().eventsDisplay().size()), std::out_of_range);
+
+
+    EXPECT_EQ(Optotrak.header().firstFrame(), 0);
+    EXPECT_EQ(Optotrak.header().lastFrame(), 3968);
+    EXPECT_EQ(Optotrak.header().nbFrames(), 3969);
+
+
+    // Parameter tests
+    EXPECT_EQ(Optotrak.parameters().checksum(), 80);
+    EXPECT_EQ(Optotrak.parameters().nbGroups(), 3);
+ 
+    EXPECT_EQ(Optotrak.parameters().group("ANALOG").parameter("USED").type(), ezc3d::INT);
+    EXPECT_EQ(Optotrak.parameters().group("ANALOG").parameter("USED").valuesAsInt().size(), 1);
+    EXPECT_EQ(Optotrak.parameters().group("ANALOG").parameter("USED").valuesAsInt()[0], 16);
+    EXPECT_EQ(Optotrak.parameters().group("ANALOG").parameter("SCALE").type(), ezc3d::FLOAT);
+    EXPECT_EQ(Optotrak.parameters().group("ANALOG").parameter("SCALE").valuesAsDouble().size(), 16);
+    EXPECT_FLOAT_EQ(Optotrak.parameters().group("ANALOG").parameter("SCALE").valuesAsDouble()[0], 0.038985152f);
+    EXPECT_EQ(Optotrak.parameters().group("ANALOG").parameter("RATE").type(), ezc3d::FLOAT);
+    EXPECT_EQ(Optotrak.parameters().group("ANALOG").parameter("RATE").valuesAsDouble().size(), 1);
+    EXPECT_FLOAT_EQ(Optotrak.parameters().group("ANALOG").parameter("RATE").valuesAsDouble()[0], 600);
+    EXPECT_EQ(Optotrak.parameters().group("ANALOG").parameter("LABELS").type(), ezc3d::CHAR);
+    EXPECT_EQ(Optotrak.parameters().group("ANALOG").parameter("LABELS").valuesAsString().size(), 16);
+    EXPECT_EQ(Optotrak.parameters().group("ANALOG").parameter("DESCRIPTIONS").type(), ezc3d::CHAR);
+    EXPECT_EQ(Optotrak.parameters().group("ANALOG").parameter("DESCRIPTIONS").valuesAsString().size(), 16);
+    EXPECT_EQ(Optotrak.parameters().group("ANALOG").parameter("UNITS").type(), ezc3d::CHAR);
+    EXPECT_EQ(Optotrak.parameters().group("ANALOG").parameter("UNITS").valuesAsString().size(), 16);
+
+    defaultParametersTest(Optotrak, PARAMETER_TYPE::POINT);
+
+    // DATA
+    for (size_t f = 0; f < 30; ++f) {
+        EXPECT_EQ(Optotrak.data().frame(f).points().nbPoints(), 0);
+        for (size_t sf = 0; sf < Optotrak.data().frame(f).analogs().nbSubframes(); sf++) {
+            EXPECT_EQ(Optotrak.data().frame(f).analogs().subframe(sf).nbChannels(), 16);
+        }
+    }
 }
 
 TEST(c3dFileio,readBtsC3D){
@@ -2028,8 +2250,8 @@ TEST(c3dFileio,readBtsC3D){
     // Point stuff
     EXPECT_EQ(BTS.header().nb3dPoints(), 22);
     EXPECT_EQ(BTS.header().nbMaxInterpGap(), 10);
-    EXPECT_FLOAT_EQ(BTS.header().scaleFactor(), static_cast<float>(-0.1));
-    EXPECT_FLOAT_EQ(BTS.header().frameRate(), static_cast<float>(100.0));
+    EXPECT_FLOAT_EQ(BTS.header().scaleFactor(), -0.1f);
+    EXPECT_FLOAT_EQ(BTS.header().frameRate(), 100.0f);
 
     // Analog stuff
     EXPECT_EQ(BTS.header().nbAnalogsMeasurement(), 440);
@@ -2068,7 +2290,7 @@ TEST(c3dFileio,readBtsC3D){
     EXPECT_EQ(BTS.parameters().group("POINT").parameter("USED").valuesAsInt()[0], 22);
     EXPECT_EQ(BTS.parameters().group("POINT").parameter("SCALE").type(), ezc3d::FLOAT);
     EXPECT_EQ(BTS.parameters().group("POINT").parameter("SCALE").valuesAsDouble().size(), 1);
-    EXPECT_FLOAT_EQ(BTS.parameters().group("POINT").parameter("SCALE").valuesAsDouble()[0], static_cast<float>(-0.1));
+    EXPECT_FLOAT_EQ(BTS.parameters().group("POINT").parameter("SCALE").valuesAsDouble()[0], -0.1f);
     EXPECT_EQ(BTS.parameters().group("POINT").parameter("RATE").type(), ezc3d::FLOAT);
     EXPECT_EQ(BTS.parameters().group("POINT").parameter("RATE").valuesAsDouble().size(), 1);
     EXPECT_FLOAT_EQ(BTS.parameters().group("POINT").parameter("RATE").valuesAsDouble()[0], 100);
@@ -2252,5 +2474,5 @@ TEST(c3dShow, printIt){
     c3dTestStruct new_c3d;
     fillC3D(new_c3d, true, true);
 
-    EXPECT_NO_THROW(new_c3d.c3d.print());
+    EXPECT_NO_THROW(testPrintingCall(new_c3d.c3d));
 }

@@ -7,8 +7,13 @@
 /// \date October 17th, 2018
 ///
 
-#include "Header.h"
-#include "Parameters.h"
+#include "ezc3d/Header.h"
+#include "ezc3d/ezc3d.h"
+#include "ezc3d/Parameters.h"
+#include "ezc3d/DataStartInfo.h"
+#include <iostream>
+#include <cmath>
+#include <stdexcept>
 
 ezc3d::Header::Header():
     _nbOfZerosBeforeHeader(0),
@@ -16,6 +21,7 @@ ezc3d::Header::Header():
     _checksum(0x50),
     _nb3dPoints(0),
     _nbAnalogsMeasurement(0),
+    _hasRotationalData(false),
     _firstFrame(0),
     _lastFrame(0),
     _nbMaxInterpGap(10),
@@ -44,6 +50,7 @@ ezc3d::Header::Header(
     _checksum(0),
     _nb3dPoints(0),
     _nbAnalogsMeasurement(0),
+    _hasRotationalData(false),
     _firstFrame(0),
     _lastFrame(0),
     _nbMaxInterpGap(10),
@@ -66,54 +73,53 @@ ezc3d::Header::Header(
 }
 
 void ezc3d::Header::print() const {
-    std::cout << "HEADER" << std::endl;
-    std::cout << "nb3dPoints = " << nb3dPoints() << std::endl;
-    std::cout << "nbAnalogsMeasurement = "
-              << nbAnalogsMeasurement() << std::endl;
-    std::cout << "nbAnalogs = " << nbAnalogs() << std::endl;
-    std::cout << "firstFrame = " << firstFrame() << std::endl;
-    std::cout << "lastFrame = " << lastFrame() << std::endl;
-    std::cout << "nbFrames = " << nbFrames() << std::endl;
-    std::cout << "nbMaxInterpGap = " << nbMaxInterpGap() << std::endl;
-    std::cout << "scaleFactor = " << scaleFactor() << std::endl;
-    std::cout << "dataStart = " << dataStart() << std::endl;
-    std::cout << "nbAnalogByFrame = " << nbAnalogByFrame() << std::endl;
-    std::cout << "frameRate = " << frameRate() << std::endl;
-    std::cout << "keyLabelPresent = " << keyLabelPresent() << std::endl;
-    std::cout << "firstBlockKeyLabel = " << firstBlockKeyLabel() << std::endl;
-    std::cout << "fourCharPresent = " << fourCharPresent() << std::endl;
-    std::cout << "nbEvents = " << nbEvents() << std::endl;
+    std::cout << "HEADER" << "\n";
+    std::cout << "nb3dPoints = " << nb3dPoints() << "\n";
+    std::cout << "nbAnalogsMeasurement = " << nbAnalogsMeasurement() << "\n";
+    std::cout << "nbAnalogs = " << nbAnalogs() << "\n";
+    std::cout << "hasRotationalData = " << hasRotationalData() << "\n";
+    std::cout << "firstFrame = " << firstFrame() << "\n";
+    std::cout << "lastFrame = " << lastFrame() << "\n";
+    std::cout << "nbFrames = " << nbFrames() << "\n";
+    std::cout << "nbMaxInterpGap = " << nbMaxInterpGap() << "\n";
+    std::cout << "scaleFactor = " << scaleFactor() << "\n";
+    std::cout << "dataStart = " << dataStart() << "\n";
+    std::cout << "nbAnalogByFrame = " << nbAnalogByFrame() << "\n";
+    std::cout << "frameRate = " << frameRate() << "\n";
+    std::cout << "keyLabelPresent = " << keyLabelPresent() << "\n";
+    std::cout << "firstBlockKeyLabel = " << firstBlockKeyLabel() << "\n";
+    std::cout << "fourCharPresent = " << fourCharPresent() << "\n";
+    std::cout << "nbEvents = " << nbEvents() << "\n";
     for (size_t i=0; i < eventsTime().size(); ++i)
         std::cout << "eventsTime[" << i << "] = "
-                  << eventsTime(i) << std::endl;
+                  << eventsTime(i) << "\n";
     for (size_t i=0; i < eventsDisplay().size(); ++i)
         std::cout << "eventsDisplay[" << i << "] = "
-                  << eventsDisplay(i) << std::endl;
+                  << eventsDisplay(i) << "\n";
     for (size_t i=0; i < eventsLabel().size(); ++i)
         std::cout << "eventsLabel[" << i << "] = "
-                  << eventsLabel(i) << std::endl;
-    std::cout << std::endl;
+                  << eventsLabel(i) << "\n";
+    std::cout << "\n";
 }
 
 void ezc3d::Header::write(
         std::fstream &f,
-        std::streampos &dataStartPosition) const {
+        ezc3d::DataStartInfo &dataStartPositionToFill,
+        bool forceZeroBasedOnFrameCount
+    ) const {
     // write the checksum byte and the start point of header
     int parameterAddessDefault(2);
-    f.write(reinterpret_cast<const char*>(
-                &parameterAddessDefault), ezc3d::BYTE);
+    f.write(reinterpret_cast<const char*>(&parameterAddessDefault), ezc3d::BYTE);
     int checksum(0x50);
     f.write(reinterpret_cast<const char*>(&checksum), ezc3d::BYTE);
 
     // Number of data
-    f.write(reinterpret_cast<const char*>(&_nb3dPoints),
-            1*ezc3d::DATA_TYPE::WORD);
-    f.write(reinterpret_cast<const char*>(&_nbAnalogsMeasurement),
-            1*ezc3d::DATA_TYPE::WORD);
+    f.write(reinterpret_cast<const char*>(&_nb3dPoints), 1*ezc3d::DATA_TYPE::WORD);
+    f.write(reinterpret_cast<const char*>(&_nbAnalogsMeasurement), 1*ezc3d::DATA_TYPE::WORD);
 
     // Idx of first and last frame
-    size_t firstFrame(_firstFrame + 1); // 1-based!
-    size_t lastFrame(_lastFrame + 1); // 1-based!
+    size_t firstFrame(_firstFrame + (forceZeroBasedOnFrameCount ? 0 : 1)); // 1-based!
+    size_t lastFrame(_lastFrame + (forceZeroBasedOnFrameCount ? 0 : 1)); // 1-based!
     if (lastFrame > 0xFFFF)
         // Combine this with group("POINT").parameter("FRAMES") = -1
         lastFrame = 0xFFFF;
@@ -130,7 +136,7 @@ void ezc3d::Header::write(
             2*ezc3d::DATA_TYPE::WORD);
 
     // Parameters of analog data
-    dataStartPosition = f.tellg();
+    dataStartPositionToFill.setHeaderPositionInC3dForPointDataStart(f.tellg());
     // dataStartPosition is to be changed when we know where the data are
     f.write(reinterpret_cast<const char*>(&_dataStart),
             1*ezc3d::DATA_TYPE::WORD);
@@ -210,11 +216,14 @@ void ezc3d::Header::read(ezc3d::c3d &c3d, std::fstream &file)
     _firstFrame = c3d.readUint(processorType, file,
                                1*ezc3d::DATA_TYPE::WORD);
     // First frame is 1-based, but some forgot hence they put 0..
-    if (_firstFrame != 0)
+    bool isOneBased = false;
+    if (_firstFrame != 0) {
         _firstFrame -= 1;
+        isOneBased = true;
+    }
     _lastFrame = c3d.readUint(processorType, file, 1*ezc3d::DATA_TYPE::WORD);
     // Last frame is 1-based, but some forgot  hence they put 0..
-    if (_lastFrame != 0)
+    if (_lastFrame != 0 && isOneBased)
         _lastFrame -= 1;
 
     // Some info
@@ -325,8 +334,18 @@ size_t ezc3d::Header::nbAnalogsMeasurement() const {
     return _nbAnalogsMeasurement;
 }
 
+bool ezc3d::Header::hasRotationalData() const
+{
+    return _hasRotationalData;
+}
+
+void ezc3d::Header::hasRotationalData(bool value)
+{
+    _hasRotationalData = value;
+}
+
 size_t ezc3d::Header::nbFrames() const {
-    if (nb3dPoints() == 0 && nbAnalogs() == 0)
+    if (nb3dPoints() == 0 && nbAnalogs() == 0 && !hasRotationalData())
         return 0;
     else
         return _lastFrame - _firstFrame + 1;

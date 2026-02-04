@@ -1,8 +1,17 @@
+from typing import Union
 from collections.abc import Mapping, MutableMapping
+from copy import deepcopy
+
 import numpy as np
 
 from . import ezc3d
 from ._version import __version__
+
+
+# This is a dummy class that is used as an interface for the group of the parameters
+class _GroupParameter:
+    def __init__(self, data):
+        self.__dict__ = data
 
 
 class C3dMapper(Mapping):
@@ -115,23 +124,61 @@ class C3dMutableMapper(C3dMapper):
 
 
 class c3d(C3dMapper):
-    def __init__(self, path="", extract_forceplat_data=False):
+    def __init__(self, path="", extract_forceplat_data=False, ignore_bad_formatting=False):
         super(c3d, self).__init__()
 
         # Interface to swig pointers
         if path == "":
             self.c3d_swig = ezc3d.c3d()
         else:
-            self.c3d_swig = ezc3d.c3d(path)
+            self.c3d_swig = ezc3d.c3d(path, ignore_bad_formatting)
 
-        self._storage["header"] = c3d.Header(self.c3d_swig.header())
+        rotations_info = ezc3d.RotationsInfo(self.c3d_swig)
+
+        self.extract_forceplat_data = extract_forceplat_data
+        self._storage["header"] = c3d.Header(self.c3d_swig.header(), rotations_info)
         self._storage["parameters"] = c3d.Parameter(self.c3d_swig.parameters())
-        self._storage["data"] = c3d.Data(self.c3d_swig, extract_forceplat_data)
+        self._storage["data"] = c3d.Data(self.c3d_swig, self.extract_forceplat_data)
         return
+    
+    @property
+    def header(self):
+        return self._storage["header"]
+    
+    @property
+    def parameters(self):
+        return self._storage["parameters"]
+    
+    @property
+    def data(self):
+        return self._storage["data"]
+
+    def __deepcopy__(self, memodict=None):
+        if memodict is None:
+            memodict = {}
+        # Create a valid structure
+        new = c3d()
+        rotations_info = ezc3d.RotationsInfo(self.c3d_swig)
+        new.extract_forceplat_data = self.extract_forceplat_data
+
+        new._storage["header"] = c3d.Header(new.c3d_swig.header(), rotations_info)
+        new._storage["parameters"] = c3d.Parameter(new.c3d_swig.parameters())
+        new._storage["data"] = c3d.Data(new.c3d_swig, new.extract_forceplat_data)
+
+        # Update the structure with a copy of all data
+        for header_key in self["header"]:
+            for value_key in self["header"][header_key]:
+                new["header"][header_key][value_key] = deepcopy(self["header"][header_key][value_key])
+        for group_key in self["parameters"]:
+            new["parameters"][group_key] = deepcopy(self["parameters"][group_key])
+        for data_key in self["data"]:
+            new["data"][data_key] = deepcopy(self["data"][data_key])
+
+        return new
 
     class Header(C3dMapper):
-        def __init__(self, swig_header):
-            super(c3d.Header, self).__init__()
+        def __init__(self, swig_header, rotation_info):
+            super().__init__()
 
             # Interface to swig pointers
             self.header = swig_header
@@ -148,6 +195,12 @@ class c3d(C3dMapper):
                 "first_frame": self.header.nbAnalogByFrame() * self.header.firstFrame(),
                 "last_frame": self.header.nbAnalogByFrame() * (self.header.lastFrame() + 1) - 1,
             }
+            self._storage["rotations"] = {
+                "size": rotation_info.used(),
+                "frame_rate": self.header.frameRate() * rotation_info.ratio(),
+                "first_frame": rotation_info.ratio() * self.header.firstFrame(),
+                "last_frame": rotation_info.ratio() * (self.header.lastFrame() + 1) - 1,
+            }
             self._storage["events"] = {
                 "size": len(self.header.eventsTime()),
                 "events_time": self.header.eventsTime(),
@@ -158,7 +211,7 @@ class c3d(C3dMapper):
 
     class Parameter(C3dMutableMapper):
         def __init__(self, swig_param):
-            super(c3d.Parameter, self).__init__()
+            super().__init__()
 
             # Interface to swig pointers
             self.parameters = swig_param
@@ -168,8 +221,15 @@ class c3d(C3dMapper):
                 self.create_group_if_needed(group_name)
                 self._storage[group_name]["__METADATA__"]["DESCRIPTION"] = group.description()
                 self._storage[group_name]["__METADATA__"]["IS_LOCKED"] = group.isLocked()
+
+                # Add easy accessor to the group 
+                setattr(self, group_name, _GroupParameter(self._storage[group_name]))
+  
                 for parameter in group.parameters():
                     self.add_parameter(group_name, parameter)
+
+                    # There is no need to add an easy accessor to the parameter as it is implicit by the fact that it is added to the KEYS
+
             return
 
         def create_group_if_needed(self, group_name):
@@ -199,6 +259,8 @@ class c3d(C3dMapper):
                 value = []
                 for element in table:
                     value.append(element)
+            else:
+                raise RuntimeError("Data type not recognized")
             param["value"] = value
 
             param_name = param_ezc3d.name()
@@ -208,7 +270,7 @@ class c3d(C3dMapper):
 
     class PlatForm(C3dMapper):
         def __init__(self, swig_pf):
-            super(c3d.PlatForm, self).__init__()
+            super().__init__()
 
             self._storage["unit_force"] = swig_pf.forceUnit()
             self._storage["unit_moment"] = swig_pf.momentUnit()
@@ -237,7 +299,7 @@ class c3d(C3dMapper):
 
     class Data(C3dMutableMapper):
         def __init__(self, swig_c3d, extract_forceplat_data):
-            super(c3d.Data, self).__init__()
+            super().__init__()
 
             # Interface to swig pointers
             self.data = swig_c3d.data()
@@ -249,6 +311,8 @@ class c3d(C3dMapper):
             }
             self._storage["analogs"] = swig_c3d.get_analogs()
 
+            self._storage["rotations"] = swig_c3d.get_rotations()
+
             # Add the platform filer if required
             if extract_forceplat_data:
                 all_pf = []
@@ -256,14 +320,125 @@ class c3d(C3dMapper):
                     all_pf.append(c3d.PlatForm(pf))
                 self._storage["platform"] = all_pf
             return
+        
+        @property
+        def points(self):
+            return self._storage["points"]
+        
+        @property
+        def meta_points(self):
+            return self._storage["meta_points"]
+        
+        @property
+        def analogs(self):
+            return self._storage["analogs"]
+        
+        @property
+        def rotations(self):
+            return self._storage["rotations"]
 
-    def add_parameter(self, group_name, parameter_name, value, description=""):
-        # Create the parameter properly using the ezc3d API
+    def add_parameter(
+        self,
+        group_name: str,
+        parameter_name: str,
+        value: Union[list, tuple, np.ndarray, int, float, str],
+        description: str = "",
+    ):
+        """
+        Create the parameter properly using the ezc3d API
+
+        :param group_name: The name of the group
+        :param parameter_name: The name of the parameter
+        :param value: The value the parameter takes
+        :param description: The description of the parameter
+        """
+
         param_ezc3d = ezc3d.Parameter(parameter_name, description)
-        param_ezc3d.set(value)
+        if isinstance(value, (list, tuple)):
+            value = np.array(value)
+            if np.issubdtype(value.dtype, np.integer):
+                value = value.astype(np.float64)
+
+        if isinstance(value, np.ndarray):
+            param_ezc3d.set(value.reshape(-1, order="F"), value.shape)
+        else:
+            param_ezc3d.set(value)
         self._storage["parameters"].add_parameter(group_name, param_ezc3d)
 
-    def write(self, path):
+    def add_event(
+        self,
+        time: list | tuple,
+        context: str = "",
+        label: str = "",
+        description: str = "",
+        subject: str = "",
+        icon_id: int = 0,
+        generic_flag: int = 0,
+    ):
+        """
+        This function adds an event, warning two events can have the same name (it wont't override it)
+
+        :param time: A list for the time, first element is the time in minute (integer), second is the second (float)
+        :param context: The context (usually "Right", "Left" or "General")
+        :param label: The name of the event
+        :param description: The description of the event
+        :param subject: The subject the event is applied to. An empty string is generic or the only subject in the scene
+        :param icon_id: The ID of the icon of the event
+        :param generic_flag: A generic flag
+        """
+
+        if "EVENT" in self["parameters"]:
+            event_param = self["parameters"]["EVENT"]
+            used = event_param["USED"]["value"].tolist()[0]
+            times = event_param["TIMES"]["value"].tolist()
+            contexts = event_param["CONTEXTS"]["value"]
+            labels = event_param["LABELS"]["value"]
+            descriptions = event_param["DESCRIPTIONS"]["value"]
+            subjects = event_param["SUBJECTS"]["value"]
+            icon_ids = event_param["ICON_IDS"]["value"].tolist()
+            generic_flags = event_param["GENERIC_FLAGS"]["value"].tolist()
+        else:
+            used = 0
+            times = [[], []]
+            contexts = []
+            labels = []
+            descriptions = []
+            subjects = []
+            icon_ids = []
+            generic_flags = []
+
+        # Adjust the EVENT group
+        used += 1
+        times[0] += [time[0]]
+        times[1] += [time[1]]
+        times = np.array(times)
+        contexts += [context]
+        labels += [label]
+        descriptions += [description]
+        subjects += [subject]
+        icon_ids += [icon_id]
+        generic_flags += [generic_flag]
+
+        # Override the EVENT group
+        self.add_parameter("EVENT", "USED", used)
+        self.add_parameter("EVENT", "TIMES", times)
+        self.add_parameter("EVENT", "CONTEXTS", contexts)
+        self.add_parameter("EVENT", "LABELS", labels)
+        self.add_parameter("EVENT", "DESCRIPTIONS", descriptions)
+        self.add_parameter("EVENT", "SUBJECTS", subjects)
+        self.add_parameter("EVENT", "ICON_IDS", icon_ids)
+        self.add_parameter("EVENT", "GENERIC_FLAGS", generic_flags)
+
+    def write(self, path: str, *, first_frame_as_zero: bool = False):
+        """
+        Write a new C3D at path. If any extra parameter is provided, then the non-standard writer is called.
+        Please note the resulting C3D may or may not work with third parties
+
+        :param path: The path where to write the file
+        :param first_frame_as_zero: If the first frame should be flaged
+         as 1 (False, default and starndard) or 0 (True, non-standard)
+        """
+
         # Make sure path is a valid path
         extension = ".c3d"
         if path[-4:] != extension:
@@ -345,16 +520,14 @@ class c3d(C3dMapper):
         if nb_analog_components != 1:
             raise TypeError("Analogs should be a numpy with first dimension exactly equals to 1 element")
         nb_analog_subframes = 0
-        if nb_point_frames != 0:
+        if nb_point_frames != 0 and nb_points != 0:
             if self._storage["parameters"]["ANALOG"]["RATE"]["value"][0] == 0:
                 if nb_analog_frames % nb_point_frames != 0:
                     raise ValueError("Number of frames of Points and Analogs should be a multiple of an integer")
             else:
-                if (
-                    nb_analog_frames
-                    != self._storage["parameters"]["ANALOG"]["RATE"]["value"][0]
-                    / self._storage["parameters"]["POINT"]["RATE"]["value"][0]
-                    * nb_point_frames
+                if ~np.isclose(
+                    nb_analog_frames * self._storage["parameters"]["POINT"]["RATE"]["value"][0],
+                    nb_point_frames * self._storage["parameters"]["ANALOG"]["RATE"]["value"][0]
                 ):
                     raise ValueError("Number of frames in the data set must match the analog rate X point frame")
 
@@ -376,6 +549,21 @@ class c3d(C3dMapper):
             raise ValueError(
                 "'c3d['parameters']['ANALOG']['LABELSX']' must have the same length as nAnalogs of the data. "
             )
+
+        data_rotations = None
+        if "rotations" in self._storage["data"]:
+            data_rotations = self._storage["data"]["rotations"]
+            if len(data_rotations.shape) != 4:
+                raise TypeError("Rotations should be a numpy with exactly 4 dimensions (4 x 4 x nRotations x nFrames)")
+            if data_rotations.shape[0] != 4 or data_rotations.shape[1] != 4:
+                raise TypeError("Rotations should be a numpy with first and second dimension exactly equals to 4 element")
+            nb_rotations = data_rotations.shape[2]
+            nb_rotations_frames = data_rotations.shape[3]
+
+            # Store the ratio
+            if nb_rotations_frames % nb_point_frames != 0:
+                raise ValueError("Number of rotations' frame should be an integer multiple of frames")
+            self.add_parameter("ROTATION", "RATIO", int(nb_rotations_frames / nb_point_frames))
 
         # Start from a fresh c3d
         new_c3d = ezc3d.c3d()
@@ -472,7 +660,7 @@ class c3d(C3dMapper):
         for i in range(nb_points):
             pts.point(pt)
         c = ezc3d.Channel()
-        subframe = ezc3d.SubFrame()
+        subframe = ezc3d.AnalogsSubframe()
         for i in range(nb_analogs):
             subframe.channel(c)
         analogs = ezc3d.Analogs()
@@ -480,22 +668,14 @@ class c3d(C3dMapper):
             analogs.subframe(subframe)
 
         # Fill the data
-        for f in range(nb_frames):
-            for i in range(nb_points):
-                pt.set(data_points[0, i, f], data_points[1, i, f], data_points[2, i, f])
-                pt.residual(data_meta_points["residuals"][0, i, f])
-                pt.cameraMask(data_meta_points["camera_masks"][:, i, f].tolist())
-                pts.point(pt, i)
-
-            for sf in range(nb_analog_subframes):
-                for i in range(nb_analogs):
-                    c.data(data_analogs[0, i, nb_analog_subframes * f + sf])
-                    subframe.channel(c, i)
-                analogs.subframe(subframe, sf)
-            frame = ezc3d.Frame()
-            frame.add(pts, analogs)
-            new_c3d.frame(frame)
+        new_c3d.import_numpy_data(
+            data_points, data_meta_points["residuals"], data_meta_points["camera_masks"], data_analogs, data_rotations
+        )
 
         # Write the file
-        new_c3d.write(path)
+        if first_frame_as_zero:
+            # As soon as at least one non-standard parameter is provided, use the parametrized write
+            new_c3d.parametrizedWrite(path, ezc3d.DEFAULT, first_frame_as_zero)
+        else:
+            new_c3d.write(path)
         return

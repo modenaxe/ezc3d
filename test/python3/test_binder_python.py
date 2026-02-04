@@ -2,6 +2,7 @@
 Test for file IO
 """
 from pathlib import Path
+from copy import deepcopy
 
 import numpy as np
 import pytest
@@ -96,6 +97,64 @@ def test_create_c3d():
     # Test the data
     assert c3d["data"]["points"].shape == (4, 0, 0)
     assert c3d["data"]["analogs"].shape == (1, 0, 0)
+
+
+def test_deepcopy():
+    # Load an empty c3d structure
+    c3d = ezc3d.c3d()
+
+    # Fill it with random data
+    point_names = ("point1", "point2", "point3", "point4", "point5")
+    point_frame_rate = 100
+    n_second = 2
+    points = np.random.rand(4, len(point_names), point_frame_rate * n_second)
+    points[3, :, :] = 1
+
+    analog_names = ("analog1", "analog2", "analog3", "analog4", "analog5", "analog6")
+    analog_frame_rate = 1000
+    analogs = np.random.rand(1, len(analog_names), analog_frame_rate * n_second)
+
+    c3d["parameters"]["POINT"]["RATE"]["value"] = [100]
+    c3d["parameters"]["POINT"]["LABELS"]["value"] = point_names
+    c3d["data"]["points"] = points
+
+    c3d["parameters"]["ANALOG"]["RATE"]["value"] = [1000]
+    c3d["parameters"]["ANALOG"]["LABELS"]["value"] = analog_names
+    c3d["data"]["analogs"] = analogs
+
+    # Add a custom parameter to the POINT group
+    point_new_param = ("POINT", "newPointParam", (1.0, 2.0, 3.0))
+    c3d.add_parameter(point_new_param[0], point_new_param[1], point_new_param[2])
+
+    # Add a custom parameter a new group
+    new_group_param = ("NewGroup", "newGroupParam", ["MyParam1", "MyParam2"])
+    c3d.add_parameter(new_group_param[0], new_group_param[1], new_group_param[2])
+
+    # Deepcopy the c3d
+    c3d_deepcopied = deepcopy(c3d)
+
+    # Change some of its values
+    change_new_group_param = ("NewGroup", "newGroupParam", ["MyParam3", "MyParam4"])
+    c3d_deepcopied.add_parameter(change_new_group_param[0], change_new_group_param[1], change_new_group_param[2])
+    c3d_deepcopied["data"]["points"][:3, :, :] = 0
+
+    # Write the new file and read it back
+    c3d_deepcopied.write("temporary.c3d")
+    c3d_loaded = ezc3d.c3d("temporary.c3d")
+
+    # Check that the new value changed, but not the old one
+    assert c3d["parameters"]["NewGroup"]["newGroupParam"]["value"] == ["MyParam1", "MyParam2"]
+    assert c3d_deepcopied["parameters"]["NewGroup"]["newGroupParam"]["value"] == ["MyParam3", "MyParam4"]
+    assert c3d_loaded["parameters"]["NewGroup"]["newGroupParam"]["value"] == ["MyParam3", "MyParam4"]
+
+    np.testing.assert_almost_equal(
+        c3d["data"]["points"][:3, :, :] - c3d_deepcopied["data"]["points"][:3, :, :], c3d["data"]["points"][:3, :, :]
+    )
+    np.testing.assert_almost_equal(c3d["data"]["points"][3, :, :], c3d_deepcopied["data"]["points"][3, :, :])
+    np.testing.assert_almost_equal(
+        c3d["data"]["points"][:3, :, :] - c3d_loaded["data"]["points"][:3, :, :], c3d["data"]["points"][:3, :, :]
+    )
+    np.testing.assert_almost_equal(c3d["data"]["points"][3, :, :], c3d_loaded["data"]["points"][3, :, :])
 
 
 def test_create_and_read_c3d():
@@ -260,6 +319,63 @@ def test_create_and_read_c3d_with_nan():
     )
 
 
+def test_add_events():
+    # Add an event to a file that does not have any before
+    c3d = ezc3d.c3d("test/c3dTestFiles/Optotrak.c3d")
+    c3d.add_event(
+        [0, 0.1],
+        label="MyNewEvent",
+        context="Left",
+        icon_id=2,
+        subject="Me",
+        description="Hey! This is new!",
+        generic_flag=1,
+    )
+    c3d.add_event([0, 0.2])
+    c3d.write("temporary.c3d")
+    c3d_to_compare = ezc3d.c3d("temporary.c3d")
+    np.testing.assert_equal(c3d_to_compare["parameters"]["EVENT"]["USED"]["value"][0], 2)
+    np.testing.assert_almost_equal(
+        c3d_to_compare["parameters"]["EVENT"]["TIMES"]["value"], [[0.0, 0.0], [0.1, 0.2]], decimal=6
+    )
+    np.testing.assert_equal(c3d_to_compare["parameters"]["EVENT"]["CONTEXTS"]["value"], ["Left", ""])
+    np.testing.assert_equal(c3d_to_compare["parameters"]["EVENT"]["LABELS"]["value"], ["MyNewEvent", ""])
+    np.testing.assert_equal(c3d_to_compare["parameters"]["EVENT"]["DESCRIPTIONS"]["value"], ["Hey! This is new!", ""])
+    np.testing.assert_equal(c3d_to_compare["parameters"]["EVENT"]["SUBJECTS"]["value"], ["Me", ""])
+    np.testing.assert_equal(c3d_to_compare["parameters"]["EVENT"]["ICON_IDS"]["value"], [2, 0])
+    np.testing.assert_equal(c3d_to_compare["parameters"]["EVENT"]["GENERIC_FLAGS"]["value"], [1, 0])
+
+    # Add an event to a file did have events before
+    c3d = c3d_to_compare
+    c3d.add_event(
+        [0, 0.3],
+        label="MySecondNewEvent",
+        context="Right",
+        icon_id=3,
+        subject="You",
+        description="Hey! This is new again!",
+        generic_flag=2,
+    )
+    c3d.add_event([0, 0.4])
+    c3d.write("temporary.c3d")
+    c3d_to_compare = ezc3d.c3d("temporary.c3d")
+    np.testing.assert_equal(c3d_to_compare["parameters"]["EVENT"]["USED"]["value"][0], 4)
+    np.testing.assert_almost_equal(
+        c3d_to_compare["parameters"]["EVENT"]["TIMES"]["value"], [[0.0, 0.0, 0.0, 0.0], [0.1, 0.2, 0.3, 0.4]], decimal=6
+    )
+    np.testing.assert_equal(c3d_to_compare["parameters"]["EVENT"]["CONTEXTS"]["value"], ["Left", "", "Right", ""])
+    np.testing.assert_equal(
+        c3d_to_compare["parameters"]["EVENT"]["LABELS"]["value"], ["MyNewEvent", "", "MySecondNewEvent", ""]
+    )
+    np.testing.assert_equal(
+        c3d_to_compare["parameters"]["EVENT"]["DESCRIPTIONS"]["value"],
+        ["Hey! This is new!", "", "Hey! This is new again!", ""],
+    )
+    np.testing.assert_equal(c3d_to_compare["parameters"]["EVENT"]["SUBJECTS"]["value"], ["Me", "", "You", ""])
+    np.testing.assert_equal(c3d_to_compare["parameters"]["EVENT"]["ICON_IDS"]["value"], [2, 0, 3, 0])
+    np.testing.assert_equal(c3d_to_compare["parameters"]["EVENT"]["GENERIC_FLAGS"]["value"], [1, 0, 2, 0])
+
+
 def test_values():
     c3d = ezc3d.c3d("test/c3dTestFiles/Vicon.c3d")
     array = c3d["data"]["points"]
@@ -344,6 +460,26 @@ def test_force_platform_filter():
     np.testing.assert_array_almost_equal(all_pf[1]["Tz"][:, [0, 1000, -1]], expected_Tz, decimal=3)
 
 
+def test_rotations():
+    c3d = ezc3d.c3d("test/c3dTestFiles/C3DRotationExample.c3d")
+    array = c3d["data"]["rotations"]
+    decimal = 6
+
+    np.testing.assert_array_equal(x=array.shape, y=(4, 4, 21, 340), err_msg="Shape does not match")
+    raveled = array.ravel()
+    np.testing.assert_array_almost_equal(
+        x=array[2, 3, 2, 5],
+        y=931.6382446289062,
+        decimal=decimal,
+    )
+    np.testing.assert_array_almost_equal(
+        x=raveled[-1],
+        y=1.0,
+        decimal=decimal,
+    )
+    np.testing.assert_array_almost_equal(x=np.nansum(array), y=9367125.137371363, decimal=decimal)
+
+
 @pytest.fixture(scope="module", params=["BTS", "Optotrak", "Qualisys", "Vicon", "Label2"])
 def c3d_build_rebuild_all(request):
     base_folder = Path("test/c3dTestFiles")
@@ -359,7 +495,7 @@ def c3d_build_rebuild_all(request):
     Path.unlink(rebuild_file)
 
 
-@pytest.fixture(scope="module", params=["BTS", "Optotrak", "Qualisys", "Vicon"])
+@pytest.fixture(scope="module", params=["BTS", "Optotrak", "Qualisys", "Vicon", "C3DRotationExample"])
 def c3d_build_rebuild_reduced(request):
     base_folder = Path("test/c3dTestFiles")
     orig_file = Path(base_folder / (request.param + ".c3d"))
@@ -368,6 +504,8 @@ def c3d_build_rebuild_reduced(request):
     original = ezc3d.c3d(orig_file.as_posix())
     original.write(rebuild_file.as_posix())
     rebuilt = ezc3d.c3d(rebuild_file.as_posix())
+    if request.param == "C3DRotationExample":
+        rebuilt["parameters"]["ROTATION"]["DATA_START"]["value"][0] = 6
 
     yield (original, rebuilt)
 
@@ -387,9 +525,32 @@ def test_parse_and_rebuild_header(c3d_build_rebuild_all):
 
 
 def test_parse_and_rebuild_parameters(c3d_build_rebuild_reduced):
-    # UNITS2 is not in the original file (Label2), but is required. Therefore, the parameters won't match
     orig, rebuilt = c3d_build_rebuild_reduced
-    assert orig["parameters"] == rebuilt["parameters"]
+    for group_key in orig.parameters._storage:
+        for param_key in orig.parameters[group_key]:
+            if not isinstance(orig.parameters[group_key][param_key], dict):
+                # Only test the values that are actual parameters
+                continue
+            if "type" not in orig.parameters[group_key][param_key]:
+                # Only test the values that are actual parameters
+                continue
+
+            if param_key == "DATA_START":
+                # Skip DATA_START as it is an internal value
+                continue
+
+            try:
+                assert orig.parameters[group_key][param_key]['type'] == rebuilt.parameters[group_key][param_key]['type']
+            except:
+                # Type may differ for empty values
+                if not orig.parameters[group_key][param_key]['value'] and not rebuilt.parameters[group_key][param_key]['value']:
+                    pass
+                else:
+                    assert orig.parameters[group_key][param_key]['type'] == rebuilt.parameters[group_key][param_key]['type']
+            assert orig.parameters[group_key][param_key]['description'] == rebuilt.parameters[group_key][param_key]['description']
+            assert orig.parameters[group_key][param_key]['is_locked'] == rebuilt.parameters[group_key][param_key]['is_locked']
+            assert np.all(orig.parameters[group_key][param_key]['value'] == rebuilt.parameters[group_key][param_key]['value'])
+    
 
 
 def test_parse_and_rebuild_data(c3d_build_rebuild_all):

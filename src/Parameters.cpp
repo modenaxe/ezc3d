@@ -7,8 +7,12 @@
 /// \date October 17th, 2018
 ///
 
-#include "Parameters.h"
-#include "Header.h"
+#include "ezc3d/Parameters.h"
+#include "ezc3d/ezc3d.h"
+#include "ezc3d/Header.h"
+#include <iostream>
+#include <cmath>
+#include <stdexcept>
 
 ezc3d::ParametersNS::Parameters::Parameters():
     _parametersStart(1),
@@ -20,37 +24,38 @@ ezc3d::ParametersNS::Parameters::Parameters():
 
 ezc3d::ParametersNS::Parameters::Parameters(
         ezc3d::c3d &c3d,
-        std::fstream &file) :
-    _parametersStart(0),
-    _checksum(0),
+        std::fstream &file,
+        bool ignoreBadFormatting) :
+    _parametersStart(1),
+    _checksum(0x50),
     _nbParamBlock(0),
     _processorType(PROCESSOR_TYPE::NO_PROCESSOR_TYPE) {
-    // Read the Parameters Header (assuming Intel processor)
+    
     _parametersStart = c3d.readUint(
-                processorType(),
-                file,
-                1*ezc3d::DATA_TYPE::BYTE, static_cast<int>(
-                    256*ezc3d::DATA_TYPE::WORD*(
-                        c3d.header().parametersAddress()-1)
-                    + c3d.header().nbOfZerosBeforeHeader()),
-                std::ios::beg);
-    _checksum = c3d.readUint(
-                processorType(), file, 1*ezc3d::DATA_TYPE::BYTE);
-    _nbParamBlock = c3d.readUint(
-                processorType(), file, 1*ezc3d::DATA_TYPE::BYTE);
-    size_t processorTypeId = c3d.readUint(
-                processorType(), file, 1*ezc3d::DATA_TYPE::BYTE);
-    if (_checksum == 0 && _parametersStart == 0){
-        // In theory, if this happens, this is a bad c3d formatting and should
-        // return an error, but for some reason Qualisys decided that they
-        // would not comply to the standard.
-        // Therefore set put "_parameterStart" and "_checksum" to 0
-        // This is a patch for Qualisys bad formatting c3d
+        processorType(),
+        file,
+        1*ezc3d::DATA_TYPE::BYTE, 
+        static_cast<int>(
+            256*ezc3d::DATA_TYPE::WORD*(c3d.header().parametersAddress()-1) + c3d.header().nbOfZerosBeforeHeader()
+        ),
+        std::ios::beg);
+    if (_parametersStart != 1){
+        // This is there for historical reasons. The parameters start is always 1 since the header is of fixed size
+        // but it is still in the file. So just ignore it.
         _parametersStart = 1;
-        _checksum = 0x50;
     }
-    if (_checksum != 0x50) // If checkbyte is wrong
-        throw std::ios_base::failure("File must be a valid c3d file");
+    
+    _checksum = c3d.readUint(processorType(), file, 1*ezc3d::DATA_TYPE::BYTE);
+    if (_checksum != 0x50){
+        // This is there for historical reasons. The checksum is not used anymore
+        // but it is still in the file. So just ignore it.
+        _checksum = 0x50;
+    } 
+    
+    _nbParamBlock = c3d.readUint(processorType(), file, 1*ezc3d::DATA_TYPE::BYTE);
+    size_t processorTypeId = c3d.readUint(processorType(), file, 1*ezc3d::DATA_TYPE::BYTE);
+    
+        
 
     if (processorTypeId == 84)
         _processorType = ezc3d::PROCESSOR_TYPE::INTEL;
@@ -67,14 +72,14 @@ ezc3d::ParametersNS::Parameters::Parameters(
 
     // Read parameter or group
     std::streampos nextParamByteInFile(
-                static_cast<int>(file.tellg())
-                + static_cast<int>(_parametersStart) - ezc3d::DATA_TYPE::BYTE);
+            static_cast<int>(file.tellg()) + static_cast<int>(_parametersStart) - ezc3d::DATA_TYPE::BYTE);
     while (nextParamByteInFile)
     {
         // Check if we spontaneously got to the next parameter.
         // Otherwise c3d is messed up
-        if (file.tellg() != nextParamByteInFile)
-            throw std::ios_base::failure("Bad c3d formatting");
+        if (!ignoreBadFormatting && file.tellg() != nextParamByteInFile){
+            throw std::ios_base::failure("The format is not standard. If you want to ignore this error, set ignoreBadFormatting to true");
+        }
 
         // Nb of char in the group name, locked if negative,
         // 0 if we finished the section
@@ -318,23 +323,63 @@ void ezc3d::ParametersNS::Parameters::setMandatoryParameters() {
     }
 }
 
+void ezc3d::ParametersNS::Parameters::setMandatoryParametersForSpecialGroup(
+        const std::string& groupName) {
+    // Mandatory groups
+    if (!groupName.compare("ROTATION"))
+    {
+        if (!isGroup("ROTATION")){
+            group(ezc3d::ParametersNS::GroupNS::Group ("ROTATION"));
+        }
+
+        ezc3d::ParametersNS::GroupNS::Group& grp(group("ROTATION"));
+        if (!grp.isParameter("USED")){
+            ezc3d::ParametersNS::GroupNS::Parameter p("USED", "");
+            p.set(0);
+            grp.parameter(p);
+        }
+        if (!grp.isParameter("DATA_START")){
+            ezc3d::ParametersNS::GroupNS::Parameter p("DATA_START", "");
+            p.set(std::vector<int>()={1});
+            grp.parameter(p);
+        }
+        if (!grp.isParameter("RATE")){
+            // Double is better as default than RATIO as RATIO is chosen in
+            // priority when writing.
+            ezc3d::ParametersNS::GroupNS::Parameter p("RATE", "");
+            p.set(std::vector<double>()=group("POINT").parameter("RATE").valuesAsDouble());
+            grp.parameter(p);
+        }
+        if (!grp.isParameter("LABELS")){
+            ezc3d::ParametersNS::GroupNS::Parameter p("LABELS", "");
+            p.set(std::vector<std::string>()={});
+            grp.parameter(p);
+        }
+        if (!grp.isParameter("DESCRIPTIONS")){
+            ezc3d::ParametersNS::GroupNS::Parameter p("DESCRIPTIONS", "");
+            p.set(std::vector<std::string>()={});
+            grp.parameter(p);
+        }
+    }
+}
+
 void ezc3d::ParametersNS::Parameters::print() const {
-    std::cout << "Parameters header" << std::endl;
-    std::cout << "parametersStart = " << parametersStart() << std::endl;
-    std::cout << "nbParamBlock = " << nbParamBlock() << std::endl;
-    std::cout << "processorType = " << processorType() << std::endl;
+    std::cout << "Parameters header" << "\n";
+    std::cout << "parametersStart = " << parametersStart() << "\n";
+    std::cout << "nbParamBlock = " << nbParamBlock() << "\n";
+    std::cout << "processorType = " << processorType() << "\n";
 
     for (size_t i = 0; i < nbGroups(); ++i){
-        std::cout << "Group " << i << std::endl;
+        std::cout << "Group " << i << "\n";
         group(i).print();
-        std::cout << std::endl;
+        std::cout << "\n";
     }
-    std::cout << std::endl;
+    std::cout << "\n";
 }
 
 ezc3d::ParametersNS::Parameters ezc3d::ParametersNS::Parameters::write(
         std::fstream &f,
-        std::streampos &dataStartPosition,
+        ezc3d::DataStartInfo &dataStartPositionToFill,
         const ezc3d::Header& header,
         const ezc3d::WRITE_FORMAT& format) const {
     ezc3d::ParametersNS::Parameters p(prepareCopyForWriting(header, format));
@@ -355,21 +400,22 @@ ezc3d::ParametersNS::Parameters ezc3d::ParametersNS::Parameters::write(
     for (size_t i=0; i < p.nbGroups(); ++i){
         const ezc3d::ParametersNS::GroupNS::Group& currentGroup(p.group(i));
         if (!currentGroup.isEmpty())
-            currentGroup.write(f, -static_cast<int>(i+1), dataStartPosition);
+            currentGroup.write(f, -static_cast<int>(i+1), dataStartPositionToFill);
     }
 
     // Move the cursor to a beginning of a block
+    ezc3d::c3d::moveCursorToANewBlock(f);
+    // Go back at the left blank space (next parameter position in the last parameter)
+    // and write the current position
     std::streampos currentPos(f.tellg());
-    for (int i=0; i<512 - static_cast<int>(currentPos) % 512; ++i){
-        f.write(reinterpret_cast<const char*>(&blankValue), ezc3d::BYTE);
-    }
-    // Go back at the left blank space and write the current position
     currentPos = f.tellg();
     f.seekg(pos);
     int nBlocksToNext = int(currentPos - pos-2)/512;
     if (int(currentPos - pos-2) % 512 > 0)
         ++nBlocksToNext;
     f.write(reinterpret_cast<const char*>(&nBlocksToNext), ezc3d::BYTE);
+
+    // Go back to where to start writing the data
     f.seekg(currentPos);
 
     return p;
@@ -409,7 +455,10 @@ ezc3d::ParametersNS::Parameters::prepareCopyForWriting(
     // Ensure that the right analog scale is in the file
     ezc3d::ParametersNS::GroupNS::Parameter analogScaleFactorParam;
     std::vector<double> analogScaleFactor;
-    if (params.group("ANALOG").parameter("SCALE").valuesAsDouble().size() > 0) {
+    if (params.group("ANALOG").parameter("USED").valuesAsInt()[0] == 0){
+        analogScaleFactorParam.name("SCALE");
+    }
+    else if (params.group("ANALOG").parameter("SCALE").valuesAsDouble().size() > 0) {
         analogScaleFactorParam = params.group("ANALOG").parameter("SCALE");
         analogScaleFactor = params.group("ANALOG").parameter("SCALE").valuesAsDouble();
     }
@@ -552,6 +601,9 @@ void ezc3d::ParametersNS::Parameters::group(
         for (size_t i=0; i < g.nbParameters(); ++i)
             _groups[alreadyExtIdx].parameter(g.parameter(i));
     }
+
+    // Do a sanity check for some specific group
+    setMandatoryParametersForSpecialGroup(g.name());
 }
 
 void ezc3d::ParametersNS::Parameters::remove(
