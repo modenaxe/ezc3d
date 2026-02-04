@@ -17,15 +17,7 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("setZeros", &ezc3d::Matrix::setZeros)
         .function("setOnes", &ezc3d::Matrix::setOnes)
         .function("setIdentity", &ezc3d::Matrix::setIdentity);
-    
-    class_<ezc3d::Matrix33, base<ezc3d::Matrix>>("Matrix33")
-        .constructor<>()
-        .constructor<double, double, double, double, double, double, double, double, double>();
 
-    class_<ezc3d::Matrix44, base<ezc3d::Matrix>>("Matrix44")
-        .constructor<>()
-        .constructor<double, double, double, double, double, double, double, double, double, double, double, double, double, double, double, double>();
-    
     // --- Vector3d Bindings (with Matrix inheritance) ---
     class_<ezc3d::Vector3d, base<ezc3d::Matrix>>("Vector3d")
         .constructor<>()
