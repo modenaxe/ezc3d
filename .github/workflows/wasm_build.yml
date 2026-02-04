@@ -26,8 +26,8 @@ jobs:
           -DBUILD_SHARED_LIBS=OFF \
           -DBUILD_EXAMPLE=OFF \
           -DBUILD_TESTS=OFF \
-          -DCMAKE_CXX_FLAGS="-std=c++17 --bind -s FORCE_FILESYSTEM=1 -s EXPORTED_RUNTIME_METHODS=['FS'] -s MODULARIZE=1 -s EXPORT_NAME='ezc3d'"
-
+          -DCMAKE_EXE_LINKER_FLAGS="--bind -s FORCE_FILESYSTEM=1 -s EXPORTED_RUNTIME_METHODS=['FS'] -s MODULARIZE=1 -s EXPORT_NAME='ezc3d' -s ALLOW_MEMORY_GROWTH=1"
+          
     - name: Build
       run: emmake make -C build
 
