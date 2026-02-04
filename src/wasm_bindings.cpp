@@ -84,7 +84,7 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
     // --- Options
     class_<ezc3d::Options>("Options")
     .constructor<>()
-    .property("verbose", &ezc3d::Options::verbose, &ezc3d::Options::setVerbose)
+    //.property("verbose", &ezc3d::Options::verbose, &ezc3d::Options::setVerbose)
     .property("keepResidials", &ezc3d::Options::keepResidials, &ezc3d::Options::setKeepResidials)
     .property("ignoreBadFormatting", &ezc3d::Options::ignoreBadFormatting, &ezc3d::Options::setIgnoreBadFormatting);
     
