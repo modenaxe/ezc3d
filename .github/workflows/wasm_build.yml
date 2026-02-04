@@ -12,33 +12,29 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4 # Updated to v4 for longevity
+      uses: actions/checkout@v4
 
     - name: Setup Emscripten
       uses: mymindstorm/setup-emsdk@v12
       with:
         version: 'latest'
 
-    - name: Verify Emscripten
-      run: emcc -v
-
     - name: Configure CMake for WASM
-      # BUILD_SHARED_LIBS is set to OFF as WASM usually uses static linking
-      # BUILD_EXAMPLE and BUILD_TESTS are OFF to focus on the core library
       run: |
         emcmake cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
           -DBUILD_SHARED_LIBS=OFF \
           -DBUILD_EXAMPLE=OFF \
           -DBUILD_TESTS=OFF \
-          -DCMAKE_CXX_FLAGS="-s EXPORT_ALL=1 -s LINKABLE=1"
+          -DCMAKE_CXX_FLAGS="--bind -s FORCE_FILESYSTEM=1 -s EXPORTED_RUNTIME_METHODS=['FS'] -s MODULARIZE=1 -s EXPORT_NAME='ezc3d'"
 
     - name: Build
       run: emmake make -C build
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v4 # Fix: Updated from v3 to v4
+      uses: actions/upload-artifact@v4
       with:
-        name: ezc3d-wasm
+        name: ezc3d-wasm-web
         path: |
-          build/libezc3d.a
+          build/ezc3d.js
+          build/ezc3d.wasm
