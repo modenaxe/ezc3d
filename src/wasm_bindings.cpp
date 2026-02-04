@@ -4,20 +4,17 @@
 using namespace emscripten;
 
 EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
-    // --- 1. Math Bindings ---
-    // Required for force/moment vectors
+    // --- Math Bindings (with explicit casts for overloads) ---
     class_<ezc3d::Vector3d>("Vector3d")
-        .function("x", &ezc3d::Vector3d::x)
-        .function("y", &ezc3d::Vector3d::y)
-        .function("z", &ezc3d::Vector3d::z);
+        .function("x", select_overload<double() const>(&ezc3d::Vector3d::x))
+        .function("y", select_overload<double() const>(&ezc3d::Vector3d::y))
+        .function("z", select_overload<double() const>(&ezc3d::Vector3d::z));
 
     class_<ezc3d::Matrix>("Matrix")
         .function("nbRows", &ezc3d::Matrix::nbRows)
-        .function("nbCols", &ezc3d::Matrix::nbCols)
-        .function("operator()", &ezc3d::Matrix::operator());
+        .function("nbCols", &ezc3d::Matrix::nbCols);
 
-    // --- 2. Force Platform Filter Bindings ---
-    // Wraps the computed platform data
+    // --- Force Platform Bindings ---
     class_<ezc3d::Modules::ForcePlatform>("ForcePlatform")
         .function("nbFrames", &ezc3d::Modules::ForcePlatform::nbFrames)
         .function("forceUnit", &ezc3d::Modules::ForcePlatform::forceUnit)
@@ -36,26 +33,28 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("nbPlatforms", &ezc3d::Modules::ForcePlatforms::nbPlatforms)
         .function("forcePlatform", &ezc3d::Modules::ForcePlatforms::forcePlatform);
 
-    // --- 3. Core C3D Output Bindings ---
+    // --- Header Bindings (with explicit casts) ---
     class_<ezc3d::Header>("Header")
         .function("nbFrames", &ezc3d::Header::nbFrames)
-        .function("frameRate", &ezc3d::Header::frameRate)
+        .function("frameRate", select_overload<float() const>(&ezc3d::Header::frameRate))
         .function("nb3dPoints", &ezc3d::Header::nb3dPoints)
         .function("nbAnalogs", &ezc3d::Header::nbAnalogs);
 
+    // --- Data Point Bindings (with explicit casts) ---
     class_<ezc3d::DataNS::Points3dNS::Point>("Point")
-        .function("x", &ezc3d::DataNS::Points3dNS::Point::x)
-        .function("y", &ezc3d::DataNS::Points3dNS::Point::y)
-        .function("z", &ezc3d::DataNS::Points3dNS::Point::z);
+        .function("x", select_overload<float() const>(&ezc3d::DataNS::Points3dNS::Point::x))
+        .function("y", select_overload<float() const>(&ezc3d::DataNS::Points3dNS::Point::y))
+        .function("z", select_overload<float() const>(&ezc3d::DataNS::Points3dNS::Point::z));
 
+    // --- Main C3D Binding ---
     class_<ezc3d::c3d>("c3d")
         .constructor<std::string>()
         .function("header", &ezc3d::c3d::header)
         .function("pointNames", &ezc3d::c3d::pointNames)
         .function("channelNames", &ezc3d::c3d::channelNames);
 
-    // --- 4. Vector Registrations ---
-    // Essential for returning arrays of objects to JS
+    // --- Vector Registrations ---
     register_vector<std::string>("StringVector");
     register_vector<ezc3d::Vector3d>("Vector3dVector");
+    register_vector<ezc3d::Modules::ForcePlatform>("ForcePlatformVector");
 }
