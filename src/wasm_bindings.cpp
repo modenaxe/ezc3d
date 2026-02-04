@@ -105,4 +105,5 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
     register_vector<ezc3d::Vector3d>("Vector3dVector");
     register_vector<double>("DoubleVector");
     register_vector<ezc3d::Modules::ForcePlatform>("ForcePlatformVector");
+    register_vector<ezc3d::DataNS::Points3dNS::Point>("PointVector");
 }
