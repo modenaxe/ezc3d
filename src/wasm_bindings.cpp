@@ -53,4 +53,47 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("calMatrix", &ezc3d::Modules::ForcePlatform::calMatrix)
         .function("corners", &ezc3d::Modules::ForcePlatform::corners)
         .function("origin", &ezc3d::Modules::ForcePlatform::origin)
-        .function("forces", &ezc3
+        .function("forces", &ezc3d::Modules::ForcePlatform::forces)
+        .function("moments", &ezc3d::Modules::ForcePlatform::moments)
+        .function("CoP", &ezc3d::Modules::ForcePlatform::CoP)
+        .function("Tz", &ezc3d::Modules::ForcePlatform::Tz);
+
+    class_<ezc3d::Modules::ForcePlatforms>("ForcePlatforms")
+        .constructor<const ezc3d::c3d&>()
+        .function("nbForcePlatforms", &ezc3d::Modules::ForcePlatforms::nbForcePlatforms)
+        .function("forcePlatform", &ezc3d::Modules::ForcePlatforms::forcePlatform);
+
+    // --- Header Bindings ---
+    class_<ezc3d::Header>("Header")
+        .function("nbFrames", &ezc3d::Header::nbFrames)
+        .function("frameRate", select_overload<float() const>(&ezc3d::Header::frameRate))
+        .function("set_frameRate", select_overload<void(float)>(&ezc3d::Header::frameRate))
+        .function("nb3dPoints", select_overload<size_t() const>(&ezc3d::Header::nb3dPoints))
+        .function("nbAnalogs", select_overload<size_t() const>(&ezc3d::Header::nbAnalogs))
+        .function("firstFrame", select_overload<size_t() const>(&ezc3d::Header::firstFrame))
+        .function("lastFrame", select_overload<size_t() const>(&ezc3d::Header::lastFrame));
+
+    // --- Data Point Bindings ---
+    class_<ezc3d::DataNS::Points3dNS::Point>("Point")
+        .function("x", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::x))
+        .function("y", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::y))
+        .function("z", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::z))
+        .function("residual", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::residual));
+
+    // --- Main C3D Binding ---
+    class_<ezc3d::c3d>("c3d")
+        .constructor<>()
+        .constructor<std::string>()
+        .function("write", &ezc3d::c3d::write)
+        .function("header", &ezc3d::c3d::header)
+        .function("parameters", &ezc3d::c3d::parameters)
+        .function("data", &ezc3d::c3d::data)
+        .function("pointNames", &ezc3d::c3d::pointNames)
+        .function("channelNames", &ezc3d::c3d::channelNames);
+
+    // --- Vector Registrations ---
+    register_vector<std::string>("StringVector");
+    register_vector<ezc3d::Vector3d>("Vector3dVector");
+    register_vector<double>("DoubleVector");
+    register_vector<ezc3d::Modules::ForcePlatform>("ForcePlatformVector");
+}
