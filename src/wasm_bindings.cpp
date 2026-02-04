@@ -69,7 +69,7 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
 
     class_<ezc3d::Modules::ForcePlatforms>("ForcePlatforms")
         .constructor<const ezc3d::c3d&>()
-        .function("nbForcePlatforms", &ezc3d::Modules::ForcePlatforms::nbForcePlatforms)
+        .function("forcePlatforms", &ezc3d::Modules::ForcePlatforms::forcePlatforms)
         .function("forcePlatform", &ezc3d::Modules::ForcePlatforms::forcePlatform);
 
     // --- Header Bindings ---
