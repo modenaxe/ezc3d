@@ -59,7 +59,6 @@ set(SRC_LIST
     src/RotationsInfo.cpp
     src/RotationsSubframe.cpp
     src/modules/ForcePlatforms.cpp
-    src/wasm_bindings.cpp
 )
 
 add_library(${PROJECT_NAME} ${SRC_LIST})
@@ -176,4 +175,19 @@ endif()
 # Testing
 if (BUILD_TESTS)
     add_subdirectory(test)
+endif()
+
+if(EMSCRIPTEN)
+    # Create an executable target for WASM
+    # This triggers the linker to produce .js and .wasm files
+    add_executable(ezc3d_wasm src/wasm_bindings.cpp)
+
+    # Link the core ezc3d library to this executable
+    target_link_libraries(ezc3d_wasm PRIVATE ${PROJECT_NAME})
+
+    # Set the output name to "ezc3d" so we get "ezc3d.js" and "ezc3d.wasm"
+    set_target_properties(ezc3d_wasm PROPERTIES OUTPUT_NAME "ezc3d")
+    
+    # Ensure C++17 is used for this target as well
+    target_compile_features(ezc3d_wasm PUBLIC cxx_std_17)
 endif()
