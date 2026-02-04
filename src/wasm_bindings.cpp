@@ -4,7 +4,7 @@
 using namespace emscripten;
 
 EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
-    // --- Math Bindings (with explicit casts for overloads) ---
+    // --- Math Bindings ---
     class_<ezc3d::Vector3d>("Vector3d")
         .function("x", select_overload<double() const>(&ezc3d::Vector3d::x))
         .function("y", select_overload<double() const>(&ezc3d::Vector3d::y))
@@ -30,17 +30,19 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
 
     class_<ezc3d::Modules::ForcePlatforms>("ForcePlatforms")
         .constructor<const ezc3d::c3d&>()
-        .function("nbPlatforms", &ezc3d::Modules::ForcePlatforms::nbPlatforms)
+        // Corrected method name from nbPlatforms to nbForcePlatforms
+        .function("nbPlatforms", &ezc3d::Modules::ForcePlatforms::nbForcePlatforms)
         .function("forcePlatform", &ezc3d::Modules::ForcePlatforms::forcePlatform);
 
-    // --- Header Bindings (with explicit casts) ---
+    // --- Header Bindings (Resolved Overloads) ---
     class_<ezc3d::Header>("Header")
         .function("nbFrames", &ezc3d::Header::nbFrames)
         .function("frameRate", select_overload<float() const>(&ezc3d::Header::frameRate))
-        .function("nb3dPoints", &ezc3d::Header::nb3dPoints)
-        .function("nbAnalogs", &ezc3d::Header::nbAnalogs);
+        // Explicitly cast overloaded size getters
+        .function("nb3dPoints", select_overload<size_t() const>(&ezc3d::Header::nb3dPoints))
+        .function("nbAnalogs", select_overload<size_t() const>(&ezc3d::Header::nbAnalogs));
 
-    // --- Data Point Bindings (with explicit casts) ---
+    // --- Data Point Bindings (Resolved Overloads) ---
     class_<ezc3d::DataNS::Points3dNS::Point>("Point")
         .function("x", select_overload<float() const>(&ezc3d::DataNS::Points3dNS::Point::x))
         .function("y", select_overload<float() const>(&ezc3d::DataNS::Points3dNS::Point::y))
