@@ -81,6 +81,13 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("z", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::z))
         .function("residual", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::residual));
 
+    // --- Options
+    class_<ezc3d::Options>("Options")
+    .constructor<>()
+    .property("verbose", &ezc3d::Options::verbose, &ezc3d::Options::setVerbose)
+    .property("keepResidials", &ezc3d::Options::keepResidials, &ezc3d::Options::setKeepResidials)
+    .property("ignoreBadFormatting", &ezc3d::Options::ignoreBadFormatting, &ezc3d::Options::setIgnoreBadFormatting);
+    
     // --- Main C3D Binding ---
     class_<ezc3d::c3d>("c3d")
         .constructor<>()
