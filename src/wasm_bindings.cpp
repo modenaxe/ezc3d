@@ -52,7 +52,7 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .constructor<const ezc3d::Matrix&>();
 
     // =========================================================================
-    // 2. PARAMETERS HIERARCHY (Corrected Namespaces and Overloads)
+    // 2. PARAMETERS HIERARCHY (Corrected All Namespaces)
     // =========================================================================
     class_<ezc3d::ParametersNS::GroupNS::Parameter>("Parameter")
         .function("name", select_overload<const std::string& () const>(&ezc3d::ParametersNS::GroupNS::Parameter::name))
@@ -62,7 +62,6 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("valuesAsDouble", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsDouble)
         .function("valuesAsInt", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsInt);
 
-    // FIXED: Use the correct nested namespace for Group
     class_<ezc3d::ParametersNS::GroupNS::Group>("Group")
         .function("name", select_overload<const std::string& () const>(&ezc3d::ParametersNS::GroupNS::Group::name))
         .function("description", select_overload<const std::string& () const>(&ezc3d::ParametersNS::GroupNS::Group::description))
@@ -72,11 +71,12 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("parameterByName", select_overload<const ezc3d::ParametersNS::GroupNS::Parameter& (const std::string &) const>(&ezc3d::ParametersNS::GroupNS::Group::parameter))
         .function("isParameter", &ezc3d::ParametersNS::GroupNS::Group::isParameter);
 
-    class_<ezc3d::Parameters>("Parameters")
-        .function("nbGroups", &ezc3d::Parameters::nbGroups)
-        .function("isGroup", &ezc3d::Parameters::isGroup)
-        .function("group", select_overload<const ezc3d::ParametersNS::GroupNS::Group& (size_t) const>(&ezc3d::Parameters::group))
-        .function("groupByName", select_overload<const ezc3d::ParametersNS::GroupNS::Group& (const std::string &) const>(&ezc3d::Parameters::group));
+    // FIXED: Correct namespace for Parameters class
+    class_<ezc3d::ParametersNS::Parameters>("Parameters")
+        .function("nbGroups", &ezc3d::ParametersNS::Parameters::nbGroups)
+        .function("isGroup", &ezc3d::ParametersNS::Parameters::isGroup)
+        .function("group", select_overload<const ezc3d::ParametersNS::GroupNS::Group& (size_t) const>(&ezc3d::ParametersNS::Parameters::group))
+        .function("groupByName", select_overload<const ezc3d::ParametersNS::GroupNS::Group& (const std::string &) const>(&ezc3d::ParametersNS::Parameters::group));
 
     // =========================================================================
     // 3. DATA HIERARCHY
@@ -129,7 +129,8 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .constructor<std::string, const ezc3d::Options&>() 
         .function("write", &ezc3d::c3d::write)
         .function("header", &ezc3d::c3d::header)
-        .function("parameters", &ezc3d::c3d::parameters)
+        // FIXED: Return type cast to correct Parameters namespace
+        .function("parameters", select_overload<const ezc3d::ParametersNS::Parameters& () const>(&ezc3d::c3d::parameters))
         .function("data", &ezc3d::c3d::data)
         .function("pointNames", &ezc3d::c3d::pointNames)
         .function("channelNames", &ezc3d::c3d::channelNames);
