@@ -63,7 +63,7 @@ set(SRC_LIST
 )
 
 add_library(${PROJECT_NAME} ${SRC_LIST})
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_11)
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     DEBUG_POSTFIX "_debug"
