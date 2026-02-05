@@ -1,27 +1,25 @@
 #include <emscripten/bind.h>
 #include "ezc3d/ezc3d_all.h"
-#include <iostream> // Required for printf/cout
+#include <iostream>
 
 using namespace emscripten;
 
 // --- DEBUG HELPER ---
-// This function catches the crash inside C++ and prints the reason.
+// Use this in JS: const c3d = module.createEmptyC3D();
 ezc3d::c3d* createEmptyC3D() {
     try {
         return new ezc3d::c3d();
     } catch (const std::exception& e) {
-        // This will show up in your browser console
-        printf("C++ EXCEPTION in createEmptyC3D: %s\n", e.what());
+        printf("🔥🔥🔥 C++ EXCEPTION: %s\n", e.what());
         return nullptr;
     } catch (...) {
-        printf("UNKNOWN C++ EXCEPTION in createEmptyC3D\n");
+        printf("🔥🔥🔥 UNKNOWN C++ EXCEPTION\n");
         return nullptr;
     }
 }
 
 EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
-
-    // Bind the debug helper
+    // Register the debug helper
     function("createEmptyC3D", &createEmptyC3D, allow_raw_pointers());
 
     // =========================================================================
@@ -130,10 +128,8 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
 
     class_<ezc3d::DataNS::Frame>("Frame")
         .constructor<>()
-        // Accessors
         .function("points", select_overload<const ezc3d::DataNS::Points3dNS::Points& () const>(&ezc3d::DataNS::Frame::points))
         .function("getAnalogs", select_overload<ezc3d::DataNS::AnalogsNS::Analogs& ()>(&ezc3d::DataNS::Frame::analogs)) 
-        // Adders
         .function("addPoints", select_overload<void(const ezc3d::DataNS::Points3dNS::Points&)>(&ezc3d::DataNS::Frame::add))
         .function("add", select_overload<void(const ezc3d::DataNS::Points3dNS::Points&, const ezc3d::DataNS::AnalogsNS::Analogs&)>(&ezc3d::DataNS::Frame::add));
 
@@ -155,7 +151,7 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("pointNames", &ezc3d::c3d::pointNames)
         .function("channelNames", &ezc3d::c3d::channelNames)
         
-        // Single Adders (Using Lambdas to avoid default arg issues)
+        // Single Adders (Using Lambdas to avoid overload ambiguity)
         .function("addParameter", optional_override([](ezc3d::c3d& self, const std::string& name, const ezc3d::ParametersNS::GroupNS::Parameter& p) {
             self.parameter(name, p);
         }))
@@ -169,7 +165,7 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
             self.frame(f);
         }))
         
-        // Batch Adders - FIXED: Replaced select_overload with lambdas
+        // Batch Adders
         .function("addPointFrames", optional_override([](ezc3d::c3d& self, const std::string& name, const std::vector<ezc3d::DataNS::Frame>& frames) {
             self.point(name, frames);
         }))
@@ -200,12 +196,16 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("forcePlatform", &ezc3d::Modules::ForcePlatforms::forcePlatform);
 
     // =========================================================================
-    // 6. VECTOR REGISTRATIONS
+    // 6. VECTOR REGISTRATIONS (CRITICAL FOR MEMORY SAFETY)
     // =========================================================================
+    // The constructor uses std::vector<char>, Data uses std::vector<Frame>, etc.
+    // If these are missing, new c3d() will crash.
+    register_vector<char>("CharVector"); 
     register_vector<std::string>("StringVector");
     register_vector<double>("DoubleVector");
     register_vector<int>("IntVector");
     register_vector<size_t>("SizeTVector"); 
+    
     register_vector<ezc3d::Vector3d>("Vector3dVector");
     register_vector<ezc3d::DataNS::Points3dNS::Point>("PointVector");
     register_vector<ezc3d::DataNS::Frame>("FrameVector");
