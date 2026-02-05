@@ -6,26 +6,30 @@
 using namespace emscripten;
 
 ezc3d::c3d* createEmptyC3D() {
-    // 1. Trace Entry
-    printf("DEBUG: Entering createEmptyC3D factory...\n");
-    
-    // 2. Check Memory
-    size_t free_memory = emscripten_get_now(); // Rough check for environment status
-    printf("DEBUG: WASM Heap Size: %zu bytes\n", (size_t)emscripten_get_heap_size());
-
     try {
-        printf("DEBUG: Attempting new ezc3d::c3d()...\n");
+        printf("DEBUG: Creating new c3d instance...\n");
         ezc3d::c3d* instance = new ezc3d::c3d();
-        printf("DEBUG: Constructor success!\n");
+        
+        // BOOTSTRAP: Add mandatory groups to prevent the 'groupIdx' crash
+        // These are required for the library's internal updateHeader/updateParameters calls
+        printf("DEBUG: Bootstrapping mandatory groups...\n");
+        instance->setGroupMetadata("POINT", "Point data parameters", false);
+        instance->setGroupMetadata("ANALOG", "Analog data parameters", false);
+        
+        // Initialize basic mandatory parameters so pointIdx/channelIdx don't fail later
+        ezc3d::ParametersNS::GroupNS::Parameter used("USED");
+        used.set(0); 
+        instance->parameter("POINT", used);
+        instance->parameter("ANALOG", used);
+
+        printf("DEBUG: Constructor and Bootstrap success!\n");
         return instance;
     } catch (const std::exception& e) {
         printf("🔥🔥🔥 C++ EXCEPTION: %s\n", e.what());
         return nullptr;
-    } catch (...) {
-        printf("🔥🔥🔥 UNKNOWN C++ CRASH (likely Memory/Alignment)\n");
-        return nullptr;
     }
 }
+
 
 EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
     // Register the debug helper
