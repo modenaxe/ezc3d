@@ -78,7 +78,7 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("groupByName", select_overload<const ezc3d::ParametersNS::GroupNS::Group& (const std::string &) const>(&ezc3d::ParametersNS::Parameters::group));
 
     // =========================================================================
-    // 3. DATA HIERARCHY (Corrected Namespaces and Overloads)
+    // 3. DATA HIERARCHY
     // =========================================================================
     class_<ezc3d::DataNS::Points3dNS::Point>("Point")
         .function("x", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::x))
@@ -102,12 +102,14 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("subframe", select_overload<const ezc3d::DataNS::AnalogsNS::SubFrame& (size_t) const>(&ezc3d::DataNS::AnalogsNS::Analogs::subframe));
 
     class_<ezc3d::DataNS::Frame>("Frame")
-        .function("points", &ezc3d::DataNS::Frame::points)
-        .function("analogs", &ezc3d::DataNS::Frame::analogs);
+        // FIXED: Select const overloads for points() and analogs()
+        .function("points", select_overload<const ezc3d::DataNS::Points3dNS::Points& () const>(&ezc3d::DataNS::Frame::points))
+        .function("analogs", select_overload<const ezc3d::DataNS::AnalogsNS::Analogs& () const>(&ezc3d::DataNS::Frame::analogs));
 
-    class_<ezc3d::Data>("Data")
-        .function("nbFrames", select_overload<size_t() const>(&ezc3d::Data::nbFrames))
-        .function("frame", select_overload<const ezc3d::DataNS::Frame& (size_t) const>(&ezc3d::Data::frame));
+    // FIXED: Use correct namespace ezc3d::DataNS::Data
+    class_<ezc3d::DataNS::Data>("Data")
+        .function("nbFrames", select_overload<size_t() const>(&ezc3d::DataNS::Data::nbFrames))
+        .function("frame", select_overload<const ezc3d::DataNS::Frame& (size_t) const>(&ezc3d::DataNS::Data::frame));
 
     // =========================================================================
     // 4. MAIN CLASSES
@@ -129,7 +131,8 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("write", &ezc3d::c3d::write)
         .function("header", &ezc3d::c3d::header)
         .function("parameters", select_overload<const ezc3d::ParametersNS::Parameters& () const>(&ezc3d::c3d::parameters))
-        .function("data", &ezc3d::c3d::data)
+        // FIXED: Return type cast to correct Data namespace
+        .function("data", select_overload<const ezc3d::DataNS::Data& () const>(&ezc3d::c3d::data))
         .function("pointNames", &ezc3d::c3d::pointNames)
         .function("channelNames", &ezc3d::c3d::channelNames);
 
