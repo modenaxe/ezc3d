@@ -163,25 +163,33 @@ bool ezc3d::ParametersNS::GroupNS::Group::isParameter(
 } */
 
 size_t ezc3d::ParametersNS::GroupNS::Group::parameterIdx(const std::string &paramName) const {
+  // 1. Standard Search
   for (size_t i = 0; i < nbParameters(); ++i)
     if (!parameter(i).name().compare(paramName))
       return i;
 
-  // --- PROACTIVE FIX ---
+  // 2. If not found, use a "Manual Mandatory" approach to prevent the throw
+  // We use const_cast because parameterIdx is a const function.
   auto* nonConstThis = const_cast<ezc3d::ParametersNS::GroupNS::Group*>(this);
-  ezc3d::ParametersNS::GroupNS::Parameter nanParam(paramName);
+
+  // LOG for debugging in the browser console
+  printf("WASM: Parameter '%s' missing in group '%s'. Initializing...\n", 
+          paramName.c_str(), _name.c_str());
+
+  // 3. Create the missing parameter
+  ezc3d::ParametersNS::GroupNS::Parameter newParam(paramName);
   
-  // Initialize based on expected type (CAL_MATRIX needs a 6x6, FORMAT needs a string)
-  if (paramName == "CAL_MATRIX") {
-      nanParam.set(std::vector<double>(36, std::numeric_limits<double>::quiet_NaN()), {6, 6});
-  } else {
-      nanParam.set(std::vector<double>{std::numeric_limits<double>::quiet_NaN()});
-  }
+  // 4. Initialize with NaN (Safe for Biomechanics)
+  // This satisfies the library's requirement for the parameter to exist 
+  // without providing "fake" valid data like 0.0.
+  newParam.set(std::vector<double>{std::numeric_limits<double>::quiet_NaN()});
   
-  nonConstThis->parameter(nanParam);
+  // 5. Add it to the group (using the library's internal adder)
+  nonConstThis->parameter(newParam);
+
+  // 6. Return the index of the newly created parameter
   return nbParameters() - 1;
 }
-
 
 const ezc3d::ParametersNS::GroupNS::Parameter &
 ezc3d::ParametersNS::GroupNS::Group::parameter(size_t idx) const {
