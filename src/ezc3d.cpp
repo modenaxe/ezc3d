@@ -69,7 +69,8 @@ ezc3d::c3d::c3d(const std::string &filePath, const Options &options)
   _parameters = std::make_shared<ezc3d::ParametersNS::Parameters>(*this, stream);
 
    // INITIALISE PARAMETERS REQUIRED FOR WASM USE
-  this->setMandatoryParameters();
+      // method is private :(
+  // this->setMandatoryParameters();
       
   // header may be inconsistent with the parameters, so it must be
   // update to make sure sizes are consistent
