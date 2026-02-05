@@ -46,7 +46,7 @@ ezc3d::c3d::c3d()
   _data = std::make_shared<ezc3d::DataNS::Data>();
 
   // INITIALISE PARAMETERS REQUIRED FOR WASM USE
-  this->setMandatoryParameters();
+  _parameters->setMandatoryParameters();
 }
 
 ezc3d::c3d::c3d(const std::string &filePath, const Options &options)
