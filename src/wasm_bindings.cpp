@@ -58,7 +58,6 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("nbParameters", &ezc3d::ParametersNS::GroupNS::Group::nbParameters)
         .function("parameter", select_overload<const ezc3d::ParametersNS::GroupNS::Parameter& (size_t) const>(&ezc3d::ParametersNS::GroupNS::Group::parameter))
         .function("parameterByName", select_overload<const ezc3d::ParametersNS::GroupNS::Parameter& (const std::string &) const>(&ezc3d::ParametersNS::GroupNS::Group::parameter))
-        // SAFE FIX: Use lambda to handle the addParameter logic (which calls parameter())
         .function("addParameter", optional_override([](ezc3d::ParametersNS::GroupNS::Group& self, const ezc3d::ParametersNS::GroupNS::Parameter& p) {
             self.parameter(p);
         }));
@@ -85,9 +84,8 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .constructor<>()
         .function("nbPoints", select_overload<size_t() const>(&ezc3d::DataNS::Points3dNS::Points::nbPoints))
         .function("point", select_overload<const ezc3d::DataNS::Points3dNS::Point& (size_t) const>(&ezc3d::DataNS::Points3dNS::Points::point))
-        // SAFE FIX: Lambda to handle default argument for adding a point
         .function("addPoint", optional_override([](ezc3d::DataNS::Points3dNS::Points& self, const ezc3d::DataNS::Points3dNS::Point& p) {
-            self.point(p); // Calls point(p, SIZE_MAX)
+            self.point(p);
         }));
 
     class_<ezc3d::DataNS::AnalogsNS::Channel>("Channel")
@@ -99,7 +97,6 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .constructor<>()
         .function("nbChannels", select_overload<size_t() const>(&ezc3d::DataNS::AnalogsNS::SubFrame::nbChannels))
         .function("channel", select_overload<const ezc3d::DataNS::AnalogsNS::Channel& (size_t) const>(&ezc3d::DataNS::AnalogsNS::SubFrame::channel))
-        // SAFE FIX: Lambda for addChannel
         .function("addChannel", optional_override([](ezc3d::DataNS::AnalogsNS::SubFrame& self, const ezc3d::DataNS::AnalogsNS::Channel& c) {
             self.channel(c);
         }));
@@ -108,15 +105,16 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .constructor<>()
         .function("nbSubframes", select_overload<size_t() const>(&ezc3d::DataNS::AnalogsNS::Analogs::nbSubframes))
         .function("subframe", select_overload<const ezc3d::DataNS::AnalogsNS::SubFrame& (size_t) const>(&ezc3d::DataNS::AnalogsNS::Analogs::subframe))
-        // SAFE FIX: Lambda for addSubframe
         .function("addSubframe", optional_override([](ezc3d::DataNS::AnalogsNS::Analogs& self, const ezc3d::DataNS::AnalogsNS::SubFrame& s) {
             self.subframe(s);
         }));
 
     class_<ezc3d::DataNS::Frame>("Frame")
         .constructor<>()
+        // Accessors
         .function("points", select_overload<const ezc3d::DataNS::Points3dNS::Points& () const>(&ezc3d::DataNS::Frame::points))
         .function("getAnalogs", select_overload<ezc3d::DataNS::AnalogsNS::Analogs& ()>(&ezc3d::DataNS::Frame::analogs)) 
+        // Adders
         .function("addPoints", select_overload<void(const ezc3d::DataNS::Points3dNS::Points&)>(&ezc3d::DataNS::Frame::add))
         .function("add", select_overload<void(const ezc3d::DataNS::Points3dNS::Points&, const ezc3d::DataNS::AnalogsNS::Analogs&)>(&ezc3d::DataNS::Frame::add));
 
@@ -152,9 +150,13 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
             self.frame(f);
         }))
         
-        // Batch Adders
-        .function("addPointFrames", select_overload<void(const std::string&, const std::vector<ezc3d::DataNS::Frame>&)>(&ezc3d::c3d::point))
-        .function("addAnalogFrames", select_overload<void(const std::string&, const std::vector<ezc3d::DataNS::Frame>&)>(&ezc3d::c3d::analog));
+        // Batch Adders - FIXED: Replaced select_overload with lambdas
+        .function("addPointFrames", optional_override([](ezc3d::c3d& self, const std::string& name, const std::vector<ezc3d::DataNS::Frame>& frames) {
+            self.point(name, frames);
+        }))
+        .function("addAnalogFrames", optional_override([](ezc3d::c3d& self, const std::string& name, const std::vector<ezc3d::DataNS::Frame>& frames) {
+            self.analog(name, frames);
+        }));
 
     // =========================================================================
     // 5. MODULES (Force Platforms)
