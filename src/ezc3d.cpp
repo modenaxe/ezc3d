@@ -49,7 +49,7 @@ ezc3d::c3d::c3d()
   // method is private unfortunately!
   // _parameters->setMandatoryParameters();
   // attempting updateParameters
-  updateParameters()
+  updateParameters();
 }
 
 ezc3d::c3d::c3d(const std::string &filePath, const Options &options)
