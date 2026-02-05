@@ -139,8 +139,12 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("parameters", select_overload<const ezc3d::ParametersNS::Parameters& () const>(&ezc3d::c3d::parameters))
         .function("data", select_overload<const ezc3d::DataNS::Data& () const>(&ezc3d::c3d::data))
         .function("pointNames", &ezc3d::c3d::pointNames)
-        .function("channelNames", &ezc3d::c3d::channelNames);
-
+        .function("channelNames", &ezc3d::c3d::channelNames)
+        // writing methods
+        .function("addParameter", select_overload<void(const std::string&, const ezc3d::ParametersNS::GroupNS::Parameter&)>(&ezc3d::c3d::parameter))
+        .function("addPoint", select_overload<void(const std::string&)>(&ezc3d::c3d::point))
+        .function("addAnalog", select_overload<void(const std::string&)>(&ezc3d::c3d::analog))
+        .function("addFrame", select_overload<void(const ezc3d::DataNS::Frame&)>(&ezc3d::c3d::frame));
     // =========================================================================
     // 5. MODULES (Force Platforms)
     // =========================================================================
@@ -162,19 +166,23 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("forcePlatforms", &ezc3d::Modules::ForcePlatforms::forcePlatforms)
         .function("forcePlatform", &ezc3d::Modules::ForcePlatforms::forcePlatform);
 
+// =========================================================================
+    // 6. INTERNAL VECTOR REGISTRATIONS (The Bridge)
     // =========================================================================
-    // 6. INTERNAL VECTOR REGISTRATIONS (CRITICAL FOR MEMORY SAFETY)
-    // =========================================================================
+    
+    // Primitives
     register_vector<std::string>("StringVector");
     register_vector<double>("DoubleVector");
     register_vector<int>("IntVector");
+    
+    // Math Objects
     register_vector<ezc3d::Vector3d>("Vector3dVector");
     
-    // Helper vectors for the internal hierarchy
-    // Embind needs them to generate correct destructors
-    register_vector<ezc3d::ParametersNS::GroupNS::Parameter>("ParameterVector");
-    register_vector<ezc3d::ParametersNS::GroupNS::Group>("GroupVector");
-    register_vector<ezc3d::DataNS::Points3dNS::Point>("PointVector");
-    register_vector<ezc3d::DataNS::Frame>("FrameVector"); 
+    // Core Objects (for return types
     register_vector<ezc3d::Modules::ForcePlatform>("ForcePlatformVector");
+    register_vector<ezc3d::DataNS::Points3dNS::Point>("PointVector");
+    
+    // Safety for internal lists 
+    register_vector<ezc3d::ParametersNS::GroupNS::Group>("GroupVector");
+    register_vector<ezc3d::ParametersNS::GroupNS::Parameter>("ParameterVector");
 }
