@@ -78,7 +78,7 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("groupByName", select_overload<const ezc3d::ParametersNS::GroupNS::Group& (const std::string &) const>(&ezc3d::ParametersNS::Parameters::group));
 
     // =========================================================================
-    // 3. DATA HIERARCHY (Corrected Namespaces)
+    // 3. DATA HIERARCHY (Corrected Namespaces and Overloads)
     // =========================================================================
     class_<ezc3d::DataNS::Points3dNS::Point>("Point")
         .function("x", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::x))
@@ -86,21 +86,19 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("z", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::z))
         .function("residual", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::residual));
 
-    // FIXED: Correct class name is 'Points' within 'Points3dNS'
     class_<ezc3d::DataNS::Points3dNS::Points>("Points")
-        .function("nbPoints", &ezc3d::DataNS::Points3dNS::Points::nbPoints)
+        .function("nbPoints", select_overload<size_t() const>(&ezc3d::DataNS::Points3dNS::Points::nbPoints))
         .function("point", select_overload<const ezc3d::DataNS::Points3dNS::Point& (size_t) const>(&ezc3d::DataNS::Points3dNS::Points::point));
 
     class_<ezc3d::DataNS::AnalogsNS::Channel>("Channel")
         .function("data", select_overload<double() const>(&ezc3d::DataNS::AnalogsNS::Channel::data));
 
     class_<ezc3d::DataNS::AnalogsNS::SubFrame>("SubFrame")
-        .function("nbChannels", &ezc3d::DataNS::AnalogsNS::SubFrame::nbChannels)
+        .function("nbChannels", select_overload<size_t() const>(&ezc3d::DataNS::AnalogsNS::SubFrame::nbChannels))
         .function("channel", select_overload<const ezc3d::DataNS::AnalogsNS::Channel& (size_t) const>(&ezc3d::DataNS::AnalogsNS::SubFrame::channel));
 
-    // FIXED: Correct class name is 'Analogs' within 'AnalogsNS'
     class_<ezc3d::DataNS::AnalogsNS::Analogs>("Analogs")
-        .function("nbSubframes", &ezc3d::DataNS::AnalogsNS::Analogs::nbSubframes)
+        .function("nbSubframes", select_overload<size_t() const>(&ezc3d::DataNS::AnalogsNS::Analogs::nbSubframes))
         .function("subframe", select_overload<const ezc3d::DataNS::AnalogsNS::SubFrame& (size_t) const>(&ezc3d::DataNS::AnalogsNS::Analogs::subframe));
 
     class_<ezc3d::DataNS::Frame>("Frame")
@@ -108,7 +106,7 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("analogs", &ezc3d::DataNS::Frame::analogs);
 
     class_<ezc3d::Data>("Data")
-        .function("nbFrames", &ezc3d::Data::nbFrames)
+        .function("nbFrames", select_overload<size_t() const>(&ezc3d::Data::nbFrames))
         .function("frame", select_overload<const ezc3d::DataNS::Frame& (size_t) const>(&ezc3d::Data::frame));
 
     // =========================================================================
