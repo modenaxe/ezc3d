@@ -513,67 +513,34 @@ bool ezc3d::ParametersNS::Parameters::isGroup(
   }
 }
 
-/*size_t ezc3d::ParametersNS::Parameters::groupIdx(const std::string &groupName) const {
-  for (size_t i = 0; i < nbGroups(); ++i)
-    if (!group(i).name().compare(groupName))
-      return i;
-  throw std::invalid_argument("Parameters::groupIdx could not find " +
-                              groupName);
-}
-// ----------------END ORIGINAL FILE
-    
-  // 1. Cast 'this' to non-const so we can heal the object
-  auto* nonConstThis = const_cast<ezc3d::ParametersNS::Parameters*>(this);
-
-  // 2. Identify if it's a mandatory group and bootstrap it
-  if (groupName == "POINT" || groupName == "ANALOG") {
-      printf("WASM: Bootstrapping mandatory group: %s\n", groupName.c_str());
-      nonConstThis->setMandatoryParameters(); 
-      
-      // Re-run the loop once to find the newly created index
-      for (size_t i = 0; i < nbGroups(); ++i)
-          if (!group(i).name().compare(groupName)) return i;
-  } 
-  
-  // 3. For "Special" groups like ROTATION or FORCE_PLATFORM
-  else if (groupName == "ROTATION" || groupName == "FORCE_PLATFORM") {
-      printf("WASM: Bootstrapping special group: %s\n", groupName.c_str());
-      // Create the group first so the special function has something to work with
-      nonConstThis->group(ezc3d::ParametersNS::GroupNS::Group(groupName));
-      // Now fill it with mandatory sub-params
-      nonConstThis->setMandatoryParametersForSpecialGroup(groupName);
-      
-      return nbGroups() - 1;
-  }
-
-  // 4. Fallback: If it's still missing, we must create it anyway to prevent the throw
-  printf("WASM: Creating placeholder for unknown group: %s\n", groupName.c_str());
-  nonConstThis->group(ezc3d::ParametersNS::GroupNS::Group(groupName));
-  return nbGroups() - 1;
-}*/
+// In src/Parameters.cpp
 
 size_t ezc3d::ParametersNS::Parameters::groupIdx(const std::string &groupName) const {
-  for (size_t i = 0; i < nbGroups(); ++i)
-    if (!group(i).name().compare(groupName))
-      return i;
+    // 1. Standard Search
+    for (size_t i = 0; i < nbGroups(); ++i)
+        if (!group(i).name().compare(groupName))
+            return i;
 
-  // --- PROACTIVE FIX ---
-  // If the group is missing, cast and initialize it
-  auto* nonConstThis = const_cast<ezc3d::ParametersNS::Parameters*>(this);
-  
-  if (groupName == "POINT" || groupName == "ANALOG") {
-      nonConstThis->setMandatoryParameters();
-  } else {
-      // Create the group and then fill special params (like ROTATION or FORCE_PLATFORM)
-      nonConstThis->group(ezc3d::ParametersNS::GroupNS::Group(groupName));
-      nonConstThis->setMandatoryParametersForSpecialGroup(groupName);
-  }
+    // 2. WASM FIX: If we are here, the group is missing.
+    // We must Cast 'this' to non-const to modify the object state.
+    auto* self = const_cast<ezc3d::ParametersNS::Parameters*>(this);
 
-  // Re-run the loop to get the new index (safe and loop-proof)
-  for (size_t i = 0; i < nbGroups(); ++i)
-    if (!group(i).name().compare(groupName)) return i;
+    // 3. CRITICAL STEP: Create and ADD the group immediately.
+    // This breaks the recursion loop. When setMandatoryParameters calls groupIdx later,
+    // it will find this group and return successfully.
+    ezc3d::ParametersNS::GroupNS::Group newGroup(groupName);
+    self->group(newGroup); 
 
-  throw std::invalid_argument("WASM Critical: Failed to bootstrap group " + groupName);
+    // 4. Now it is safe to call the "Fixer" functions
+    if (groupName == "POINT" || groupName == "ANALOG") {
+        self->setMandatoryParameters();
+    } 
+    else if (groupName == "FORCE_PLATFORM" || groupName == "ROTATION") {
+        self->setMandatoryParametersForSpecialGroup(groupName);
+    }
+
+    // 5. Return the index of the newly created group (it's the last one)
+    return nbGroups() - 1;
 }
 
 const ezc3d::ParametersNS::GroupNS::Group &
