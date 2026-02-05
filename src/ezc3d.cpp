@@ -46,7 +46,7 @@ ezc3d::c3d::c3d()
   _data = std::make_shared<ezc3d::DataNS::Data>();
 
   // INITIALISE PARAMETERS REQUIRED FOR WASM USE
-  setMandatoryParameters();
+  this->setMandatoryParameters();
 }
 
 ezc3d::c3d::c3d(const std::string &filePath, const Options &options)
@@ -67,6 +67,9 @@ ezc3d::c3d::c3d(const std::string &filePath, const Options &options)
   _header = std::make_shared<ezc3d::Header>(*this, stream);
   _parameters = std::make_shared<ezc3d::ParametersNS::Parameters>(*this, stream);
 
+   // INITIALISE PARAMETERS REQUIRED FOR WASM USE
+  this->setMandatoryParameters();
+      
   // header may be inconsistent with the parameters, so it must be
   // update to make sure sizes are consistent
   updateHeader();
