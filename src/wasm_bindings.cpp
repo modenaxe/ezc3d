@@ -54,6 +54,7 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
     // =========================================================================
     // 2. PARAMETERS HIERARCHY
     // =========================================================================
+    // 1. Parameter
     class_<ezc3d::ParametersNS::GroupNS::Parameter>("Parameter")
         .function("name", select_overload<const std::string& () const>(&ezc3d::ParametersNS::GroupNS::Parameter::name))
         .function("description", select_overload<const std::string& () const>(&ezc3d::ParametersNS::GroupNS::Parameter::description))
@@ -62,6 +63,7 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("valuesAsDouble", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsDouble)
         .function("valuesAsInt", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsInt);
 
+    // 2. Group
     class_<ezc3d::ParametersNS::GroupNS::Group>("Group")
         .function("name", select_overload<const std::string& () const>(&ezc3d::ParametersNS::GroupNS::Group::name))
         .function("description", select_overload<const std::string& () const>(&ezc3d::ParametersNS::GroupNS::Group::description))
@@ -71,6 +73,7 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("parameterByName", select_overload<const ezc3d::ParametersNS::GroupNS::Parameter& (const std::string &) const>(&ezc3d::ParametersNS::GroupNS::Group::parameter))
         .function("isParameter", &ezc3d::ParametersNS::GroupNS::Group::isParameter);
 
+    // 3. Parameters
     class_<ezc3d::ParametersNS::Parameters>("Parameters")
         .function("nbGroups", &ezc3d::ParametersNS::Parameters::nbGroups)
         .function("isGroup", &ezc3d::ParametersNS::Parameters::isGroup)
@@ -80,16 +83,19 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
     // =========================================================================
     // 3. DATA HIERARCHY
     // =========================================================================
+    // 1. Point
     class_<ezc3d::DataNS::Points3dNS::Point>("Point")
         .function("x", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::x))
         .function("y", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::y))
         .function("z", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::z))
         .function("residual", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::residual));
 
+    // 2. Points (Collection)
     class_<ezc3d::DataNS::Points3dNS::Points>("Points")
         .function("nbPoints", select_overload<size_t() const>(&ezc3d::DataNS::Points3dNS::Points::nbPoints))
         .function("point", select_overload<const ezc3d::DataNS::Points3dNS::Point& (size_t) const>(&ezc3d::DataNS::Points3dNS::Points::point));
 
+    // 3. Analogs
     class_<ezc3d::DataNS::AnalogsNS::Channel>("Channel")
         .function("data", select_overload<double() const>(&ezc3d::DataNS::AnalogsNS::Channel::data));
 
@@ -101,12 +107,12 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("nbSubframes", select_overload<size_t() const>(&ezc3d::DataNS::AnalogsNS::Analogs::nbSubframes))
         .function("subframe", select_overload<const ezc3d::DataNS::AnalogsNS::SubFrame& (size_t) const>(&ezc3d::DataNS::AnalogsNS::Analogs::subframe));
 
+    // 4. Frame
     class_<ezc3d::DataNS::Frame>("Frame")
-        // FIXED: Select const overloads for points() and analogs()
         .function("points", select_overload<const ezc3d::DataNS::Points3dNS::Points& () const>(&ezc3d::DataNS::Frame::points))
         .function("analogs", select_overload<const ezc3d::DataNS::AnalogsNS::Analogs& () const>(&ezc3d::DataNS::Frame::analogs));
 
-    // FIXED: Use correct namespace ezc3d::DataNS::Data
+    // 5. Data (Container)
     class_<ezc3d::DataNS::Data>("Data")
         .function("nbFrames", select_overload<size_t() const>(&ezc3d::DataNS::Data::nbFrames))
         .function("frame", select_overload<const ezc3d::DataNS::Frame& (size_t) const>(&ezc3d::DataNS::Data::frame));
@@ -131,7 +137,6 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("write", &ezc3d::c3d::write)
         .function("header", &ezc3d::c3d::header)
         .function("parameters", select_overload<const ezc3d::ParametersNS::Parameters& () const>(&ezc3d::c3d::parameters))
-        // FIXED: Return type cast to correct Data namespace
         .function("data", select_overload<const ezc3d::DataNS::Data& () const>(&ezc3d::c3d::data))
         .function("pointNames", &ezc3d::c3d::pointNames)
         .function("channelNames", &ezc3d::c3d::channelNames);
@@ -158,12 +163,18 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("forcePlatform", &ezc3d::Modules::ForcePlatforms::forcePlatform);
 
     // =========================================================================
-    // 6. VECTOR REGISTRATIONS
+    // 6. INTERNAL VECTOR REGISTRATIONS (CRITICAL FOR MEMORY SAFETY)
     // =========================================================================
     register_vector<std::string>("StringVector");
     register_vector<double>("DoubleVector");
     register_vector<int>("IntVector");
     register_vector<ezc3d::Vector3d>("Vector3dVector");
-    register_vector<ezc3d::Modules::ForcePlatform>("ForcePlatformVector");
+    
+    // Helper vectors for the internal hierarchy
+    // Embind needs them to generate correct destructors
+    register_vector<ezc3d::ParametersNS::GroupNS::Parameter>("ParameterVector");
+    register_vector<ezc3d::ParametersNS::GroupNS::Group>("GroupVector");
     register_vector<ezc3d::DataNS::Points3dNS::Point>("PointVector");
+    register_vector<ezc3d::DataNS::Frame>("FrameVector"); 
+    register_vector<ezc3d::Modules::ForcePlatform>("ForcePlatformVector");
 }
