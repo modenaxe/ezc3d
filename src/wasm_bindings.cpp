@@ -49,7 +49,6 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("valuesAsDouble", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsDouble)
         .function("valuesAsInt", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsInt)
         .function("valuesAsString", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsString)
-        // SETTERS
         .function("set", select_overload<void(const std::vector<double>&, const std::vector<size_t>&)>(&ezc3d::ParametersNS::GroupNS::Parameter::set))
         .function("setInt", select_overload<void(const std::vector<int>&, const std::vector<size_t>&)>(&ezc3d::ParametersNS::GroupNS::Parameter::set))
         .function("setString", select_overload<void(const std::vector<std::string>&, const std::vector<size_t>&)>(&ezc3d::ParametersNS::GroupNS::Parameter::set));
@@ -59,8 +58,10 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("nbParameters", &ezc3d::ParametersNS::GroupNS::Group::nbParameters)
         .function("parameter", select_overload<const ezc3d::ParametersNS::GroupNS::Parameter& (size_t) const>(&ezc3d::ParametersNS::GroupNS::Group::parameter))
         .function("parameterByName", select_overload<const ezc3d::ParametersNS::GroupNS::Parameter& (const std::string &) const>(&ezc3d::ParametersNS::GroupNS::Group::parameter))
-        // FIXED: Use 'parameter' overload instead of non-existent 'addParameter'
-        .function("addParameter", select_overload<void(const ezc3d::ParametersNS::GroupNS::Parameter&)>(&ezc3d::ParametersNS::GroupNS::Group::parameter)); 
+        // SAFE FIX: Use lambda to handle the addParameter logic (which calls parameter())
+        .function("addParameter", optional_override([](ezc3d::ParametersNS::GroupNS::Group& self, const ezc3d::ParametersNS::GroupNS::Parameter& p) {
+            self.parameter(p);
+        }));
 
     class_<ezc3d::ParametersNS::Parameters>("Parameters")
         .function("nbGroups", &ezc3d::ParametersNS::Parameters::nbGroups)
@@ -84,7 +85,10 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .constructor<>()
         .function("nbPoints", select_overload<size_t() const>(&ezc3d::DataNS::Points3dNS::Points::nbPoints))
         .function("point", select_overload<const ezc3d::DataNS::Points3dNS::Point& (size_t) const>(&ezc3d::DataNS::Points3dNS::Points::point))
-        .function("addPoint", select_overload<void(const ezc3d::DataNS::Points3dNS::Point&)>(&ezc3d::DataNS::Points3dNS::Points::point));
+        // SAFE FIX: Lambda to handle default argument for adding a point
+        .function("addPoint", optional_override([](ezc3d::DataNS::Points3dNS::Points& self, const ezc3d::DataNS::Points3dNS::Point& p) {
+            self.point(p); // Calls point(p, SIZE_MAX)
+        }));
 
     class_<ezc3d::DataNS::AnalogsNS::Channel>("Channel")
         .constructor<>()
@@ -95,20 +99,24 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .constructor<>()
         .function("nbChannels", select_overload<size_t() const>(&ezc3d::DataNS::AnalogsNS::SubFrame::nbChannels))
         .function("channel", select_overload<const ezc3d::DataNS::AnalogsNS::Channel& (size_t) const>(&ezc3d::DataNS::AnalogsNS::SubFrame::channel))
-        .function("addChannel", select_overload<void(const ezc3d::DataNS::AnalogsNS::Channel&)>(&ezc3d::DataNS::AnalogsNS::SubFrame::channel));
+        // SAFE FIX: Lambda for addChannel
+        .function("addChannel", optional_override([](ezc3d::DataNS::AnalogsNS::SubFrame& self, const ezc3d::DataNS::AnalogsNS::Channel& c) {
+            self.channel(c);
+        }));
 
     class_<ezc3d::DataNS::AnalogsNS::Analogs>("Analogs")
         .constructor<>()
         .function("nbSubframes", select_overload<size_t() const>(&ezc3d::DataNS::AnalogsNS::Analogs::nbSubframes))
         .function("subframe", select_overload<const ezc3d::DataNS::AnalogsNS::SubFrame& (size_t) const>(&ezc3d::DataNS::AnalogsNS::Analogs::subframe))
-        .function("addSubframe", select_overload<void(const ezc3d::DataNS::AnalogsNS::SubFrame&)>(&ezc3d::DataNS::AnalogsNS::Analogs::subframe));
+        // SAFE FIX: Lambda for addSubframe
+        .function("addSubframe", optional_override([](ezc3d::DataNS::AnalogsNS::Analogs& self, const ezc3d::DataNS::AnalogsNS::SubFrame& s) {
+            self.subframe(s);
+        }));
 
     class_<ezc3d::DataNS::Frame>("Frame")
         .constructor<>()
-        // Accessors
         .function("points", select_overload<const ezc3d::DataNS::Points3dNS::Points& () const>(&ezc3d::DataNS::Frame::points))
         .function("getAnalogs", select_overload<ezc3d::DataNS::AnalogsNS::Analogs& ()>(&ezc3d::DataNS::Frame::analogs)) 
-        // Adders
         .function("addPoints", select_overload<void(const ezc3d::DataNS::Points3dNS::Points&)>(&ezc3d::DataNS::Frame::add))
         .function("add", select_overload<void(const ezc3d::DataNS::Points3dNS::Points&, const ezc3d::DataNS::AnalogsNS::Analogs&)>(&ezc3d::DataNS::Frame::add));
 
@@ -130,11 +138,19 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("pointNames", &ezc3d::c3d::pointNames)
         .function("channelNames", &ezc3d::c3d::channelNames)
         
-        // Single Adders
-        .function("addParameter", select_overload<void(const std::string&, const ezc3d::ParametersNS::GroupNS::Parameter&)>(&ezc3d::c3d::parameter))
-        .function("addPoint", select_overload<void(const std::string&)>(&ezc3d::c3d::point))
-        .function("addAnalog", select_overload<void(const std::string&)>(&ezc3d::c3d::analog))
-        .function("addFrame", select_overload<void(const ezc3d::DataNS::Frame&)>(&ezc3d::c3d::frame))
+        // Single Adders (Using Lambdas to avoid default arg issues)
+        .function("addParameter", optional_override([](ezc3d::c3d& self, const std::string& name, const ezc3d::ParametersNS::GroupNS::Parameter& p) {
+            self.parameter(name, p);
+        }))
+        .function("addPoint", optional_override([](ezc3d::c3d& self, const std::string& name) {
+            self.point(name);
+        }))
+        .function("addAnalog", optional_override([](ezc3d::c3d& self, const std::string& name) {
+            self.analog(name);
+        }))
+        .function("addFrame", optional_override([](ezc3d::c3d& self, const ezc3d::DataNS::Frame& f) {
+            self.frame(f);
+        }))
         
         // Batch Adders
         .function("addPointFrames", select_overload<void(const std::string&, const std::vector<ezc3d::DataNS::Frame>&)>(&ezc3d::c3d::point))
