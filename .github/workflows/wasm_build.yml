@@ -38,7 +38,7 @@ jobs:
           -DBUILD_EXAMPLE=OFF \
           -DBUILD_TESTS=OFF \
           -DCMAKE_CXX_FLAGS="-std=c++17" \
-          -DCMAKE_EXE_LINKER_FLAGS="--bind -fexceptions -s ALIGN_MEMORY=1 -s MALLOC='emmalloc' -s FORCE_FILESYSTEM=1 -s EXPORTED_RUNTIME_METHODS=['FS','getExceptionMessage'] -s EXPORTED_FUNCTIONS=['_malloc','_free'] -s MODULARIZE=1 -s EXPORT_NAME='ezc3d' -s ALLOW_MEMORY_GROWTH=1 \
+          -DCMAKE_EXE_LINKER_FLAGS="--bind -fexceptions -s MALLOC='emmalloc' -s FORCE_FILESYSTEM=1 -s EXPORTED_RUNTIME_METHODS=['FS','getExceptionMessage'] -s EXPORTED_FUNCTIONS=['_malloc','_free'] -s MODULARIZE=1 -s EXPORT_NAME='ezc3d' -s ALLOW_MEMORY_GROWTH=1 \
             -s ASSERTIONS=1 \
             -s DISABLE_EXCEPTION_CATCHING=0"
             
