@@ -153,40 +153,35 @@ bool ezc3d::ParametersNS::GroupNS::Group::isParameter(
   }
 }
 
-size_t ezc3d::ParametersNS::GroupNS::Group::parameterIdx(
+/*size_t ezc3d::ParametersNS::GroupNS::Group::parameterIdx(
     const std::string &parameterName) const {
   for (size_t i = 0; i < nbParameters(); ++i)
     if (!parameter(i).name().compare(parameterName))
       return i;
   throw std::invalid_argument("Group::parameterIdx could not find " +
                               parameterName + " in the group " + name());
-}
-/*
-size_t ezc3d::ParametersNS::GroupNS::Group::parameterIdx(const std::string& name) const {
-    for (size_t i = 0; i < _parameters.size(); ++i) {
-        if (!toUpper(_parameters[i].name()).compare(toUpper(name)))
-            return i;
-    }
+} */
 
-    // --- WASM SAFETY HOOK ---
-    // Log the missing parameter
-    printf("WASM: Missing parameter '%s'. Injecting NaN placeholder.\n", name.c_str());
-    
-    // Create a dummy parameter with the missing name
-    ezc3d::ParametersNS::GroupNS::Parameter nanParam(name);
-    
-    // Set value to NaN. Note: ezc3d usually expects a vector for values.
-    nanParam.set(std::vector<double>{std::numeric_limits<double>::quiet_NaN()});
-    
-    // In ezc3d, the 'parameter' method is used to add a new parameter
-    // parameterIdx is a const function
-    auto* nonConstThis = const_cast<ezc3d::ParametersNS::GroupNS::Group*>(this);
-    nonConstThis->parameter(nanParam);
-    
-    // Return the index of the newly added parameter 
-    return _parameters.size() - 1;
+size_t ezc3d::ParametersNS::GroupNS::Group::parameterIdx(const std::string &paramName) const {
+  for (size_t i = 0; i < nbParameters(); ++i)
+    if (!parameter(i).name().compare(paramName))
+      return i;
+
+  // --- PROACTIVE FIX ---
+  auto* nonConstThis = const_cast<ezc3d::ParametersNS::GroupNS::Group*>(this);
+  ezc3d::ParametersNS::GroupNS::Parameter nanParam(paramName);
+  
+  // Initialize based on expected type (CAL_MATRIX needs a 6x6, FORMAT needs a string)
+  if (paramName == "CAL_MATRIX") {
+      nanParam.set(std::vector<double>(36, std::numeric_limits<double>::quiet_NaN()), {6, 6});
+  } else {
+      nanParam.set(std::vector<double>{std::numeric_limits<double>::quiet_NaN()});
+  }
+  
+  nonConstThis->parameter(nanParam);
+  return nbParameters() - 1;
 }
-*/
+
 
 const ezc3d::ParametersNS::GroupNS::Parameter &
 ezc3d::ParametersNS::GroupNS::Group::parameter(size_t idx) const {
