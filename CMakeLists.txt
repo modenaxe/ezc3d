@@ -49,7 +49,6 @@ set(SRC_LIST
     src/Frame.cpp
     src/Group.cpp
     src/Header.cpp
-    src/Options.cpp
     src/Parameter.cpp
     src/Parameters.cpp
     src/Point.cpp
