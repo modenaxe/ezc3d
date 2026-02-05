@@ -153,14 +153,15 @@ bool ezc3d::ParametersNS::GroupNS::Group::isParameter(
   }
 }
 
-// size_t ezc3d::ParametersNS::GroupNS::Group::parameterIdx(
- //   const std::string &parameterName) const {
-  //for (size_t i = 0; i < nbParameters(); ++i)
-    //if (!parameter(i).name().compare(parameterName))
-      //return i;
-  //throw std::invalid_argument("Group::parameterIdx could not find " +
-    //                          parameterName + " in the group " + name());
-//}
+size_t ezc3d::ParametersNS::GroupNS::Group::parameterIdx(
+    const std::string &parameterName) const {
+  for (size_t i = 0; i < nbParameters(); ++i)
+    if (!parameter(i).name().compare(parameterName))
+      return i;
+  throw std::invalid_argument("Group::parameterIdx could not find " +
+                              parameterName + " in the group " + name());
+}
+/*
 size_t ezc3d::ParametersNS::GroupNS::Group::parameterIdx(const std::string& name) const {
     for (size_t i = 0; i < _parameters.size(); ++i) {
         if (!toUpper(_parameters[i].name()).compare(toUpper(name)))
@@ -185,6 +186,7 @@ size_t ezc3d::ParametersNS::GroupNS::Group::parameterIdx(const std::string& name
     // Return the index of the newly added parameter 
     return _parameters.size() - 1;
 }
+*/
 
 const ezc3d::ParametersNS::GroupNS::Parameter &
 ezc3d::ParametersNS::GroupNS::Group::parameter(size_t idx) const {
