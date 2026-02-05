@@ -513,13 +513,23 @@ bool ezc3d::ParametersNS::Parameters::isGroup(
   }
 }
 
-size_t
-ezc3d::ParametersNS::Parameters::groupIdx(const std::string &groupName) const {
-  for (size_t i = 0; i < nbGroups(); ++i)
-    if (!group(i).name().compare(groupName))
-      return i;
-  throw std::invalid_argument("Parameters::groupIdx could not find " +
-                              groupName);
+//size_t
+//ezc3d::ParametersNS::Parameters::groupIdx(const std::string &groupName) const {
+//  for (size_t i = 0; i < nbGroups(); ++i)
+//    if (!group(i).name().compare(groupName))
+//      return i;
+//  throw std::invalid_argument("Parameters::groupIdx could not find " +
+//                              groupName);
+//}
+size_t ezc3d::ParametersNS::Parameters::groupIdx(const std::string& name) const {
+    for (size_t i = 0; i < _groups.size(); ++i) {
+        if (!toUpper(_groups[i].name()).compare(toUpper(name)))
+            return i;
+    }
+    // JIT Fix: Create missing group on the fly
+    auto* nonConstThis = const_cast<ezc3d::ParametersNS::Parameters*>(this);
+    nonConstThis->group(ezc3d::ParametersNS::GroupNS::Group(name));
+    return _groups.size() - 1;
 }
 
 const ezc3d::ParametersNS::GroupNS::Group &
