@@ -1,9 +1,28 @@
 #include <emscripten/bind.h>
 #include "ezc3d/ezc3d_all.h"
+#include <iostream> // Required for printf/cout
 
 using namespace emscripten;
 
+// --- DEBUG HELPER ---
+// This function catches the crash inside C++ and prints the reason.
+ezc3d::c3d* createEmptyC3D() {
+    try {
+        return new ezc3d::c3d();
+    } catch (const std::exception& e) {
+        // This will show up in your browser console
+        printf("C++ EXCEPTION in createEmptyC3D: %s\n", e.what());
+        return nullptr;
+    } catch (...) {
+        printf("UNKNOWN C++ EXCEPTION in createEmptyC3D\n");
+        return nullptr;
+    }
+}
+
 EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
+
+    // Bind the debug helper
+    function("createEmptyC3D", &createEmptyC3D, allow_raw_pointers());
 
     // =========================================================================
     // 1. OPTIONS & MATH CORE
