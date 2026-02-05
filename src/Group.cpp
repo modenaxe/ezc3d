@@ -153,42 +153,20 @@ bool ezc3d::ParametersNS::GroupNS::Group::isParameter(
   }
 }
 
-/*size_t ezc3d::ParametersNS::GroupNS::Group::parameterIdx(
-    const std::string &parameterName) const {
-  for (size_t i = 0; i < nbParameters(); ++i)
-    if (!parameter(i).name().compare(parameterName))
-      return i;
-  throw std::invalid_argument("Group::parameterIdx could not find " +
-                              parameterName + " in the group " + name());
-} */
-
 size_t ezc3d::ParametersNS::GroupNS::Group::parameterIdx(const std::string &paramName) const {
-  // 1. Standard Search
-  for (size_t i = 0; i < nbParameters(); ++i)
-    if (!parameter(i).name().compare(paramName))
-      return i;
+    for (size_t i = 0; i < nbParameters(); ++i)
+        if (!parameter(i).name().compare(paramName))
+            return i;
 
-  // 2. If not found, use a "Manual Mandatory" approach to prevent the throw
-  // We use const_cast because parameterIdx is a const function.
-  auto* nonConstThis = const_cast<ezc3d::ParametersNS::GroupNS::Group*>(this);
+    // Fix: Create missing parameter
+    auto* self = const_cast<ezc3d::ParametersNS::GroupNS::Group*>(this);
+    ezc3d::ParametersNS::GroupNS::Parameter newParam(paramName);
+    
+    // Initialize with NaN/default to be safe
+    newParam.set(std::vector<double>{std::numeric_limits<double>::quiet_NaN()});
+    self->parameter(newParam);
 
-  // LOG for debugging in the browser console
-  printf("WASM: Parameter '%s' missing in group '%s'. Initializing...\n", 
-          paramName.c_str(), _name.c_str());
-
-  // 3. Create the missing parameter
-  ezc3d::ParametersNS::GroupNS::Parameter newParam(paramName);
-  
-  // 4. Initialize with NaN (Safe for Biomechanics)
-  // This satisfies the library's requirement for the parameter to exist 
-  // without providing "fake" valid data like 0.0.
-  newParam.set(std::vector<double>{std::numeric_limits<double>::quiet_NaN()});
-  
-  // 5. Add it to the group (using the library's internal adder)
-  nonConstThis->parameter(newParam);
-
-  // 6. Return the index of the newly created parameter
-  return nbParameters() - 1;
+    return nbParameters() - 1;
 }
 
 const ezc3d::ParametersNS::GroupNS::Parameter &
