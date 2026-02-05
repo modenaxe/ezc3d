@@ -1,19 +1,28 @@
 #include <emscripten/bind.h>
+#include <emscripten/heap.h> // Required for memory checks
 #include "ezc3d/ezc3d_all.h"
 #include <iostream>
 
 using namespace emscripten;
 
-// --- DEBUG HELPER ---
-// Use this in JS: const c3d = module.createEmptyC3D();
 ezc3d::c3d* createEmptyC3D() {
+    // 1. Trace Entry
+    printf("DEBUG: Entering createEmptyC3D factory...\n");
+    
+    // 2. Check Memory
+    size_t free_memory = emscripten_get_now(); // Rough check for environment status
+    printf("DEBUG: WASM Heap Size: %zu bytes\n", (size_t)emscripten_get_heap_size());
+
     try {
-        return new ezc3d::c3d();
+        printf("DEBUG: Attempting new ezc3d::c3d()...\n");
+        ezc3d::c3d* instance = new ezc3d::c3d();
+        printf("DEBUG: Constructor success!\n");
+        return instance;
     } catch (const std::exception& e) {
         printf("🔥🔥🔥 C++ EXCEPTION: %s\n", e.what());
         return nullptr;
     } catch (...) {
-        printf("🔥🔥🔥 UNKNOWN C++ EXCEPTION\n");
+        printf("🔥🔥🔥 UNKNOWN C++ CRASH (likely Memory/Alignment)\n");
         return nullptr;
     }
 }
