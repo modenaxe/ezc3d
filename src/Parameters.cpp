@@ -517,19 +517,39 @@ size_t ezc3d::ParametersNS::Parameters::groupIdx(const std::string &groupName) c
   for (size_t i = 0; i < nbGroups(); ++i)
     if (!group(i).name().compare(groupName))
       return i;
-  throw std::invalid_argument("Parameters::groupIdx could not find " +
+/*  throw std::invalid_argument("Parameters::groupIdx could not find " +
                               groupName);
-}
-/*size_t ezc3d::ParametersNS::Parameters::groupIdx(const std::string& name) const {
-    for (size_t i = 0; i < _groups.size(); ++i) {
-        if (!toUpper(_groups[i].name()).compare(toUpper(name)))
-            return i;
-    }
-    // JIT Fix: Create missing group on the fly
-    auto* nonConstThis = const_cast<ezc3d::ParametersNS::Parameters*>(this);
-    nonConstThis->group(ezc3d::ParametersNS::GroupNS::Group(name));
-    return _groups.size() - 1;
 }*/
+    
+  // 1. Cast 'this' to non-const so we can heal the object
+  auto* nonConstThis = const_cast<ezc3d::ParametersNS::Parameters*>(this);
+
+  // 2. Identify if it's a mandatory group and bootstrap it
+  if (groupName == "POINT" || groupName == "ANALOG") {
+      printf("WASM: Bootstrapping mandatory group: %s\n", groupName.c_str());
+      nonConstThis->setMandatoryParameters(); 
+      
+      // Re-run the loop once to find the newly created index
+      for (size_t i = 0; i < nbGroups(); ++i)
+          if (!group(i).name().compare(groupName)) return i;
+  } 
+  
+  // 3. For "Special" groups like ROTATION or FORCE_PLATFORM
+  else if (groupName == "ROTATION" || groupName == "FORCE_PLATFORM") {
+      printf("WASM: Bootstrapping special group: %s\n", groupName.c_str());
+      // Create the group first so the special function has something to work with
+      nonConstThis->group(ezc3d::ParametersNS::GroupNS::Group(groupName));
+      // Now fill it with mandatory sub-params
+      nonConstThis->setMandatoryParametersForSpecialGroup(groupName);
+      
+      return nbGroups() - 1;
+  }
+
+  // 4. Fallback: If it's still missing, we must create it anyway to prevent the throw
+  printf("WASM: Creating placeholder for unknown group: %s\n", groupName.c_str());
+  nonConstThis->group(ezc3d::ParametersNS::GroupNS::Group(groupName));
+  return nbGroups() - 1;
+}
 
 const ezc3d::ParametersNS::GroupNS::Group &
 ezc3d::ParametersNS::Parameters::group(size_t idx) const {
