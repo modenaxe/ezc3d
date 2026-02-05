@@ -37,9 +37,20 @@ jobs:
           -DBUILD_SHARED_LIBS=OFF \
           -DBUILD_EXAMPLE=OFF \
           -DBUILD_TESTS=OFF \
-          -DCMAKE_CXX_FLAGS="-std=c++17" \
-          -DCMAKE_EXE_LINKER_FLAGS="--bind -s FORCE_FILESYSTEM=1 -s EXPORTED_RUNTIME_METHODS=['FS','getExceptionMessage'] -s EXPORTED_FUNCTIONS=['_malloc','_free'] -s MODULARIZE=1 -s EXPORT_NAME='ezc3d' -s ALLOW_MEMORY_GROWTH=1"
-
+          # Compiler Flags
+          -DCMAKE_CXX_FLAGS="-std=c++17 -fexceptions"
+          # Linker Flags
+          -DCMAKE_EXE_LINKER_FLAGS="--bind \
+            -fexceptions \
+            -s FORCE_FILESYSTEM=1 \
+            -s EXPORTED_RUNTIME_METHODS=['FS','getExceptionMessage'] \
+            -s EXPORTED_FUNCTIONS=['_malloc','_free'] \
+            -s MODULARIZE=1 \
+            -s EXPORT_NAME='ezc3d' \
+            -s ALLOW_MEMORY_GROWTH=1 \
+            -s ASSERTIONS=1 \
+            -s DISABLE_EXCEPTION_CATCHING=0"
+            
     - name: Build WASM
       run: emmake make -C build
 
