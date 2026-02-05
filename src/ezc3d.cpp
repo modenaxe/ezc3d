@@ -44,26 +44,6 @@ ezc3d::c3d::c3d()
   _header = std::make_shared<ezc3d::Header>();
   _parameters = std::make_shared<ezc3d::ParametersNS::Parameters>();
   _data = std::make_shared<ezc3d::DataNS::Data>();
-
- // --- ADDED TO FIX THE EMPTY CONSTRUCTOR FOR WEB USE---
-  
-  // 1. Create the mandatory groups
-  this->setGroupMetadata("POINT", "Point data parameters", false);
-  this->setGroupMetadata("ANALOG", "Analog data parameters", false);
-
-  // 2. Initialize the 'USED' parameter for both groups to 0
-  // This prevents 'parameterIdx' errors in internal update functions.
-  ezc3d::ParametersNS::GroupNS::Parameter used("USED");
-  used.set(std::vector<int>{0});
-  this->parameter("POINT", used);
-  this->parameter("ANALOG", used);
-  
-  // 3. Initialize 'RATE' to 0.0 to satisfy updateHeader logic
-  ezc3d::ParametersNS::GroupNS::Parameter rate("RATE");
-  rate.set(std::vector<double>{0.0});
-  this->parameter("POINT", rate);
-  this->parameter("ANALOG", rate);
-      
 }
 
 ezc3d::c3d::c3d(const std::string &filePath, const Options &options)
