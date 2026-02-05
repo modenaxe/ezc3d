@@ -48,6 +48,8 @@ ezc3d::c3d::c3d()
   // INITIALISE PARAMETERS REQUIRED FOR WASM USE
   // method is private unfortunately!
   // _parameters->setMandatoryParameters();
+  // attempting updateParameters
+  updateParameters()
 }
 
 ezc3d::c3d::c3d(const std::string &filePath, const Options &options)
