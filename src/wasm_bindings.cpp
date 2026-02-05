@@ -21,10 +21,10 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("print", &ezc3d::Matrix::print)
         .function("nbRows", &ezc3d::Matrix::nbRows)
         .function("nbCols", &ezc3d::Matrix::nbCols)
-        .function("size", &ezc3d::Matrix::size)
-        .function("setZeros", &ezc3d::Matrix::setZeros)
-        .function("setOnes", &ezc3d::Matrix::setOnes)
-        .function("setIdentity", &ezc3d::Matrix::setIdentity);
+        // Added for your example: .T() (Transpose)
+        .function("T", &ezc3d::Matrix::T) 
+        // Allow access to elements like matrix(0, 0)
+        .function("get", select_overload<double(size_t, size_t) const>(&ezc3d::Matrix::operator()));
 
     class_<ezc3d::Vector3d, base<ezc3d::Matrix>>("Vector3d")
         .constructor<>()
@@ -32,104 +32,88 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .constructor<const ezc3d::Matrix&>()
         .function("print", &ezc3d::Vector3d::print)
         .function("x", select_overload<double() const>(&ezc3d::Vector3d::x))
-        .function("set_x", select_overload<void(double)>(&ezc3d::Vector3d::x))
         .function("y", select_overload<double() const>(&ezc3d::Vector3d::y))
-        .function("set_y", select_overload<void(double)>(&ezc3d::Vector3d::y))
         .function("z", select_overload<double() const>(&ezc3d::Vector3d::z))
+        .function("set", &ezc3d::Vector3d::set)
+        .function("set_x", select_overload<void(double)>(&ezc3d::Vector3d::x))
+        .function("set_y", select_overload<void(double)>(&ezc3d::Vector3d::y))
         .function("set_z", select_overload<void(double)>(&ezc3d::Vector3d::z))
-        .function("isValid", &ezc3d::Vector3d::isValid)
         .function("norm", &ezc3d::Vector3d::norm)
         .function("normalize", &ezc3d::Vector3d::normalize);
-
-    class_<ezc3d::Matrix33, base<ezc3d::Matrix>>("Matrix33")
-        .constructor<>()
-        .constructor<double, double, double, double, double, double, double, double, double>()
-        .constructor<const ezc3d::Matrix&>();
-
-    class_<ezc3d::Matrix44, base<ezc3d::Matrix>>("Matrix44")
-        .constructor<>()
-        .constructor<double, double, double, double, double, double, double, double, double, double, double, double, double, double, double, double>()
-        .constructor<const ezc3d::Matrix&>();
 
     // =========================================================================
     // 2. PARAMETERS HIERARCHY
     // =========================================================================
-    // 1. Parameter
     class_<ezc3d::ParametersNS::GroupNS::Parameter>("Parameter")
+        .constructor<std::string>() 
         .function("name", select_overload<const std::string& () const>(&ezc3d::ParametersNS::GroupNS::Parameter::name))
         .function("description", select_overload<const std::string& () const>(&ezc3d::ParametersNS::GroupNS::Parameter::description))
-        .function("isLocked", &ezc3d::ParametersNS::GroupNS::Parameter::isLocked)
-        .function("valuesAsString", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsString)
         .function("valuesAsDouble", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsDouble)
-        .function("valuesAsInt", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsInt);
+        .function("valuesAsInt", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsInt)
+        .function("valuesAsString", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsString)
+        .function("set", select_overload<void(const std::vector<double>&, const std::vector<size_t>&)>(&ezc3d::ParametersNS::GroupNS::Parameter::set));
 
-    // 2. Group
     class_<ezc3d::ParametersNS::GroupNS::Group>("Group")
         .function("name", select_overload<const std::string& () const>(&ezc3d::ParametersNS::GroupNS::Group::name))
-        .function("description", select_overload<const std::string& () const>(&ezc3d::ParametersNS::GroupNS::Group::description))
-        .function("isLocked", &ezc3d::ParametersNS::GroupNS::Group::isLocked)
         .function("nbParameters", &ezc3d::ParametersNS::GroupNS::Group::nbParameters)
         .function("parameter", select_overload<const ezc3d::ParametersNS::GroupNS::Parameter& (size_t) const>(&ezc3d::ParametersNS::GroupNS::Group::parameter))
         .function("parameterByName", select_overload<const ezc3d::ParametersNS::GroupNS::Parameter& (const std::string &) const>(&ezc3d::ParametersNS::GroupNS::Group::parameter))
-        .function("isParameter", &ezc3d::ParametersNS::GroupNS::Group::isParameter);
+        .function("addParameter", &ezc3d::ParametersNS::GroupNS::Group::addParameter); 
 
-    // 3. Parameters
     class_<ezc3d::ParametersNS::Parameters>("Parameters")
         .function("nbGroups", &ezc3d::ParametersNS::Parameters::nbGroups)
-        .function("isGroup", &ezc3d::ParametersNS::Parameters::isGroup)
         .function("group", select_overload<const ezc3d::ParametersNS::GroupNS::Group& (size_t) const>(&ezc3d::ParametersNS::Parameters::group))
         .function("groupByName", select_overload<const ezc3d::ParametersNS::GroupNS::Group& (const std::string &) const>(&ezc3d::ParametersNS::Parameters::group));
 
     // =========================================================================
     // 3. DATA HIERARCHY
     // =========================================================================
-    // 1. Point
     class_<ezc3d::DataNS::Points3dNS::Point>("Point")
+        .constructor<>()
         .function("x", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::x))
         .function("y", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::y))
         .function("z", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::z))
-        .function("residual", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::residual));
+        .function("residual", select_overload<double() const>(&ezc3d::DataNS::Points3dNS::Point::residual))
+        .function("set_x", select_overload<void(double)>(&ezc3d::DataNS::Points3dNS::Point::x))
+        .function("set_y", select_overload<void(double)>(&ezc3d::DataNS::Points3dNS::Point::y))
+        .function("set_z", select_overload<void(double)>(&ezc3d::DataNS::Points3dNS::Point::z));
 
-    // 2. Points (Collection)
     class_<ezc3d::DataNS::Points3dNS::Points>("Points")
+        .constructor<>()
         .function("nbPoints", select_overload<size_t() const>(&ezc3d::DataNS::Points3dNS::Points::nbPoints))
-        .function("point", select_overload<const ezc3d::DataNS::Points3dNS::Point& (size_t) const>(&ezc3d::DataNS::Points3dNS::Points::point));
+        .function("point", select_overload<const ezc3d::DataNS::Points3dNS::Point& (size_t) const>(&ezc3d::DataNS::Points3dNS::Points::point))
+        .function("addPoint", select_overload<void(const ezc3d::DataNS::Points3dNS::Point&)>(&ezc3d::DataNS::Points3dNS::Points::point));
 
-    // 3. Analogs
     class_<ezc3d::DataNS::AnalogsNS::Channel>("Channel")
-        .function("data", select_overload<double() const>(&ezc3d::DataNS::AnalogsNS::Channel::data));
+        .constructor<>()
+        .function("data", select_overload<double() const>(&ezc3d::DataNS::AnalogsNS::Channel::data))
+        .function("set_data", select_overload<void(double)>(&ezc3d::DataNS::AnalogsNS::Channel::data));
 
     class_<ezc3d::DataNS::AnalogsNS::SubFrame>("SubFrame")
+        .constructor<>()
         .function("nbChannels", select_overload<size_t() const>(&ezc3d::DataNS::AnalogsNS::SubFrame::nbChannels))
-        .function("channel", select_overload<const ezc3d::DataNS::AnalogsNS::Channel& (size_t) const>(&ezc3d::DataNS::AnalogsNS::SubFrame::channel));
+        .function("channel", select_overload<const ezc3d::DataNS::AnalogsNS::Channel& (size_t) const>(&ezc3d::DataNS::AnalogsNS::SubFrame::channel))
+        .function("addChannel", select_overload<void(const ezc3d::DataNS::AnalogsNS::Channel&)>(&ezc3d::DataNS::AnalogsNS::SubFrame::channel));
 
     class_<ezc3d::DataNS::AnalogsNS::Analogs>("Analogs")
+        .constructor<>()
         .function("nbSubframes", select_overload<size_t() const>(&ezc3d::DataNS::AnalogsNS::Analogs::nbSubframes))
-        .function("subframe", select_overload<const ezc3d::DataNS::AnalogsNS::SubFrame& (size_t) const>(&ezc3d::DataNS::AnalogsNS::Analogs::subframe));
+        .function("subframe", select_overload<const ezc3d::DataNS::AnalogsNS::SubFrame& (size_t) const>(&ezc3d::DataNS::AnalogsNS::Analogs::subframe))
+        .function("addSubframe", select_overload<void(const ezc3d::DataNS::AnalogsNS::SubFrame&)>(&ezc3d::DataNS::AnalogsNS::Analogs::subframe));
 
-    // 4. Frame
     class_<ezc3d::DataNS::Frame>("Frame")
+        .constructor<>()
         .function("points", select_overload<const ezc3d::DataNS::Points3dNS::Points& () const>(&ezc3d::DataNS::Frame::points))
-        .function("analogs", select_overload<const ezc3d::DataNS::AnalogsNS::Analogs& () const>(&ezc3d::DataNS::Frame::analogs));
+        .function("analogs", select_overload<const ezc3d::DataNS::AnalogsNS::Analogs& () const>(&ezc3d::DataNS::Frame::analogs))
+        .function("add", select_overload<void(const ezc3d::DataNS::Points3dNS::Points&, const ezc3d::DataNS::AnalogsNS::Analogs&)>(&ezc3d::DataNS::Frame::add));
 
-    // 5. Data (Container)
     class_<ezc3d::DataNS::Data>("Data")
         .function("nbFrames", select_overload<size_t() const>(&ezc3d::DataNS::Data::nbFrames))
         .function("frame", select_overload<const ezc3d::DataNS::Frame& (size_t) const>(&ezc3d::DataNS::Data::frame));
 
     // =========================================================================
-    // 4. MAIN CLASSES
+    // 4. MAIN C3D CLASS
     // =========================================================================
-    class_<ezc3d::Header>("Header")
-        .function("nbFrames", &ezc3d::Header::nbFrames)
-        .function("frameRate", select_overload<float() const>(&ezc3d::Header::frameRate))
-        .function("set_frameRate", select_overload<void(float)>(&ezc3d::Header::frameRate))
-        .function("nb3dPoints", select_overload<size_t() const>(&ezc3d::Header::nb3dPoints))
-        .function("nbAnalogs", select_overload<size_t() const>(&ezc3d::Header::nbAnalogs))
-        .function("nbAnalogByFrame", select_overload<size_t() const>(&ezc3d::Header::nbAnalogByFrame))
-        .function("firstFrame", select_overload<size_t() const>(&ezc3d::Header::firstFrame))
-        .function("lastFrame", select_overload<size_t() const>(&ezc3d::Header::lastFrame));
-
     class_<ezc3d::c3d>("c3d")
         .constructor<>()
         .constructor<std::string>()
@@ -140,16 +124,18 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("data", select_overload<const ezc3d::DataNS::Data& () const>(&ezc3d::c3d::data))
         .function("pointNames", &ezc3d::c3d::pointNames)
         .function("channelNames", &ezc3d::c3d::channelNames)
-        // writing methods
         .function("addParameter", select_overload<void(const std::string&, const ezc3d::ParametersNS::GroupNS::Parameter&)>(&ezc3d::c3d::parameter))
         .function("addPoint", select_overload<void(const std::string&)>(&ezc3d::c3d::point))
         .function("addAnalog", select_overload<void(const std::string&)>(&ezc3d::c3d::analog))
         .function("addFrame", select_overload<void(const ezc3d::DataNS::Frame&)>(&ezc3d::c3d::frame));
+
     // =========================================================================
-    // 5. MODULES (Force Platforms)
+    // 5. MODULES (Force Platforms - Updated for Example)
     // =========================================================================
     class_<ezc3d::Modules::ForcePlatform>("ForcePlatform")
         .function("nbFrames", &ezc3d::Modules::ForcePlatform::nbFrames)
+        // Added: .type() needed for "Type ="
+        .function("type", &ezc3d::Modules::ForcePlatform::type) 
         .function("forceUnit", &ezc3d::Modules::ForcePlatform::forceUnit)
         .function("momentUnit", &ezc3d::Modules::ForcePlatform::momentUnit)
         .function("positionUnit", &ezc3d::Modules::ForcePlatform::positionUnit)
@@ -166,23 +152,15 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("forcePlatforms", &ezc3d::Modules::ForcePlatforms::forcePlatforms)
         .function("forcePlatform", &ezc3d::Modules::ForcePlatforms::forcePlatform);
 
-// =========================================================================
-    // 6. INTERNAL VECTOR REGISTRATIONS (The Bridge)
     // =========================================================================
-    
-    // Primitives
+    // 6. VECTOR REGISTRATIONS
+    // =========================================================================
     register_vector<std::string>("StringVector");
     register_vector<double>("DoubleVector");
     register_vector<int>("IntVector");
-    
-    // Math Objects
+    register_vector<size_t>("SizeTVector"); 
     register_vector<ezc3d::Vector3d>("Vector3dVector");
-    
-    // Core Objects (for return types
-    register_vector<ezc3d::Modules::ForcePlatform>("ForcePlatformVector");
     register_vector<ezc3d::DataNS::Points3dNS::Point>("PointVector");
-    
-    // Safety for internal lists 
-    register_vector<ezc3d::ParametersNS::GroupNS::Group>("GroupVector");
-    register_vector<ezc3d::ParametersNS::GroupNS::Parameter>("ParameterVector");
+    register_vector<ezc3d::DataNS::Frame>("FrameVector");
+    register_vector<ezc3d::Modules::ForcePlatform>("ForcePlatformVector");
 }
