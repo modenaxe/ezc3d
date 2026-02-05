@@ -153,13 +153,32 @@ bool ezc3d::ParametersNS::GroupNS::Group::isParameter(
   }
 }
 
-size_t ezc3d::ParametersNS::GroupNS::Group::parameterIdx(
-    const std::string &parameterName) const {
-  for (size_t i = 0; i < nbParameters(); ++i)
-    if (!parameter(i).name().compare(parameterName))
-      return i;
-  throw std::invalid_argument("Group::parameterIdx could not find " +
-                              parameterName + " in the group " + name());
+// size_t ezc3d::ParametersNS::GroupNS::Group::parameterIdx(
+ //   const std::string &parameterName) const {
+  //for (size_t i = 0; i < nbParameters(); ++i)
+    //if (!parameter(i).name().compare(parameterName))
+      //return i;
+  //throw std::invalid_argument("Group::parameterIdx could not find " +
+    //                          parameterName + " in the group " + name());
+//}
+
+size_t ezc3d::ParametersNS::GroupNS::Group::parameterIdx(const std::string& name) const {
+    for (size_t i = 0; i < _parameters.size(); ++i) {
+        if (!toUpper(_parameters[i].name()).compare(toUpper(name)))
+            return i;
+    }
+
+    // --- WASM SAFETY HOOK ---
+    // If the parameter is missing, create a dummy one with NaN
+    printf("WASM: Missing parameter '%s'. Injecting NaN placeholder.\n", name.c_str());
+    
+    ezc3d::ParametersNS::GroupNS::Parameter nanParam(name);
+    nanParam.set(std::numeric_limits<double>::quiet_NaN());
+    
+    // We use const_cast to modify the group's internal list even in a const function
+    const_cast<ezc3d::ParametersNS::GroupNS::Group*>(this)->addParameter(nanParam);
+    
+    return _parameters.size() - 1; // Return the index of the newly added NaN param
 }
 
 const ezc3d::ParametersNS::GroupNS::Parameter &
