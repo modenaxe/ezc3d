@@ -513,13 +513,14 @@ bool ezc3d::ParametersNS::Parameters::isGroup(
   }
 }
 
-size_t ezc3d::ParametersNS::Parameters::groupIdx(const std::string &groupName) const {
+/*size_t ezc3d::ParametersNS::Parameters::groupIdx(const std::string &groupName) const {
   for (size_t i = 0; i < nbGroups(); ++i)
     if (!group(i).name().compare(groupName))
       return i;
-/*  throw std::invalid_argument("Parameters::groupIdx could not find " +
+  throw std::invalid_argument("Parameters::groupIdx could not find " +
                               groupName);
-}*/
+}
+// ----------------END ORIGINAL FILE
     
   // 1. Cast 'this' to non-const so we can heal the object
   auto* nonConstThis = const_cast<ezc3d::ParametersNS::Parameters*>(this);
@@ -549,6 +550,30 @@ size_t ezc3d::ParametersNS::Parameters::groupIdx(const std::string &groupName) c
   printf("WASM: Creating placeholder for unknown group: %s\n", groupName.c_str());
   nonConstThis->group(ezc3d::ParametersNS::GroupNS::Group(groupName));
   return nbGroups() - 1;
+}*/
+
+size_t ezc3d::ParametersNS::Parameters::groupIdx(const std::string &groupName) const {
+  for (size_t i = 0; i < nbGroups(); ++i)
+    if (!group(i).name().compare(groupName))
+      return i;
+
+  // --- PROACTIVE FIX ---
+  // If the group is missing, cast and initialize it
+  auto* nonConstThis = const_cast<ezc3d::ParametersNS::Parameters*>(this);
+  
+  if (groupName == "POINT" || groupName == "ANALOG") {
+      nonConstThis->setMandatoryParameters();
+  } else {
+      // Create the group and then fill special params (like ROTATION or FORCE_PLATFORM)
+      nonConstThis->group(ezc3d::ParametersNS::GroupNS::Group(groupName));
+      nonConstThis->setMandatoryParametersForSpecialGroup(groupName);
+  }
+
+  // Re-run the loop to get the new index (safe and loop-proof)
+  for (size_t i = 0; i < nbGroups(); ++i)
+    if (!group(i).name().compare(groupName)) return i;
+
+  throw std::invalid_argument("WASM Critical: Failed to bootstrap group " + groupName);
 }
 
 const ezc3d::ParametersNS::GroupNS::Group &
