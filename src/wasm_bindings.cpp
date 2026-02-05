@@ -21,9 +21,7 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("print", &ezc3d::Matrix::print)
         .function("nbRows", &ezc3d::Matrix::nbRows)
         .function("nbCols", &ezc3d::Matrix::nbCols)
-        // Added for your example: .T() (Transpose)
-        .function("T", &ezc3d::Matrix::T) 
-        // Allow access to elements like matrix(0, 0)
+        .function("T", &ezc3d::Matrix::T)
         .function("get", select_overload<double(size_t, size_t) const>(&ezc3d::Matrix::operator()));
 
     class_<ezc3d::Vector3d, base<ezc3d::Matrix>>("Vector3d")
@@ -42,7 +40,7 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("normalize", &ezc3d::Vector3d::normalize);
 
     // =========================================================================
-    // 2. PARAMETERS HIERARCHY
+    // 2. PARAMETERS HIERARCHY (Expanded for Types)
     // =========================================================================
     class_<ezc3d::ParametersNS::GroupNS::Parameter>("Parameter")
         .constructor<std::string>() 
@@ -51,7 +49,10 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("valuesAsDouble", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsDouble)
         .function("valuesAsInt", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsInt)
         .function("valuesAsString", &ezc3d::ParametersNS::GroupNS::Parameter::valuesAsString)
-        .function("set", select_overload<void(const std::vector<double>&, const std::vector<size_t>&)>(&ezc3d::ParametersNS::GroupNS::Parameter::set));
+        // SETTERS for different types (Double, Int, String)
+        .function("set", select_overload<void(const std::vector<double>&, const std::vector<size_t>&)>(&ezc3d::ParametersNS::GroupNS::Parameter::set))
+        .function("setInt", select_overload<void(const std::vector<int>&, const std::vector<size_t>&)>(&ezc3d::ParametersNS::GroupNS::Parameter::set))
+        .function("setString", select_overload<void(const std::vector<std::string>&, const std::vector<size_t>&)>(&ezc3d::ParametersNS::GroupNS::Parameter::set));
 
     class_<ezc3d::ParametersNS::GroupNS::Group>("Group")
         .function("name", select_overload<const std::string& () const>(&ezc3d::ParametersNS::GroupNS::Group::name))
@@ -103,8 +104,12 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
 
     class_<ezc3d::DataNS::Frame>("Frame")
         .constructor<>()
+        // Accessors
         .function("points", select_overload<const ezc3d::DataNS::Points3dNS::Points& () const>(&ezc3d::DataNS::Frame::points))
-        .function("analogs", select_overload<const ezc3d::DataNS::AnalogsNS::Analogs& () const>(&ezc3d::DataNS::Frame::analogs))
+        // Non-const accessors (needed for frame.analogs().subframe(...) style chaining)
+        .function("getAnalogs", select_overload<ezc3d::DataNS::AnalogsNS::Analogs& ()>(&ezc3d::DataNS::Frame::analogs)) 
+        // Adders
+        .function("addPoints", select_overload<void(const ezc3d::DataNS::Points3dNS::Points&)>(&ezc3d::DataNS::Frame::add))
         .function("add", select_overload<void(const ezc3d::DataNS::Points3dNS::Points&, const ezc3d::DataNS::AnalogsNS::Analogs&)>(&ezc3d::DataNS::Frame::add));
 
     class_<ezc3d::DataNS::Data>("Data")
@@ -124,17 +129,22 @@ EMSCRIPTEN_BINDINGS(ezc3d_wasm) {
         .function("data", select_overload<const ezc3d::DataNS::Data& () const>(&ezc3d::c3d::data))
         .function("pointNames", &ezc3d::c3d::pointNames)
         .function("channelNames", &ezc3d::c3d::channelNames)
+        
+        // Single Adders
         .function("addParameter", select_overload<void(const std::string&, const ezc3d::ParametersNS::GroupNS::Parameter&)>(&ezc3d::c3d::parameter))
         .function("addPoint", select_overload<void(const std::string&)>(&ezc3d::c3d::point))
         .function("addAnalog", select_overload<void(const std::string&)>(&ezc3d::c3d::analog))
-        .function("addFrame", select_overload<void(const ezc3d::DataNS::Frame&)>(&ezc3d::c3d::frame));
+        .function("addFrame", select_overload<void(const ezc3d::DataNS::Frame&)>(&ezc3d::c3d::frame))
+        
+        // Batch Adders (New for this example)
+        .function("addPointFrames", select_overload<void(const std::string&, const std::vector<ezc3d::DataNS::Frame>&)>(&ezc3d::c3d::point))
+        .function("addAnalogFrames", select_overload<void(const std::string&, const std::vector<ezc3d::DataNS::Frame>&)>(&ezc3d::c3d::analog));
 
     // =========================================================================
-    // 5. MODULES (Force Platforms - Updated for Example)
+    // 5. MODULES (Force Platforms)
     // =========================================================================
     class_<ezc3d::Modules::ForcePlatform>("ForcePlatform")
         .function("nbFrames", &ezc3d::Modules::ForcePlatform::nbFrames)
-        // Added: .type() needed for "Type ="
         .function("type", &ezc3d::Modules::ForcePlatform::type) 
         .function("forceUnit", &ezc3d::Modules::ForcePlatform::forceUnit)
         .function("momentUnit", &ezc3d::Modules::ForcePlatform::momentUnit)
