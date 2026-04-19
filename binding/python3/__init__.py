@@ -55,15 +55,13 @@ class C3dMapper(Mapping):
 
             if isinstance(self._storage[key], C3dMapper) and isinstance(other._storage[key], C3dMapper):
                 # If it is a c3d, the child is also a C3DMapper. Recursively call __eq__
-                return self._storage[key] == other._storage[key]
+                if not (self._storage[key] == other._storage[key]):
+                    return False
             elif isinstance(self._storage[key], dict) and isinstance(other._storage[key], dict):
                 if not self.__eq_param__(key, self._storage[key], other._storage[key]):
                     return False
             elif isinstance(self._storage[key], np.ndarray) and isinstance(other._storage[key], np.ndarray):
-                try:
-                    np.testing.assert_array_equal(self._storage[key], other._storage[key])
-                    return True
-                except AssertionError:
+                if not np.array_equal(self._storage[key], other._storage[key], equal_nan=True):
                     return False
             else:
                 # Otherwise it is unknown data, therefore assume they are different
@@ -106,7 +104,10 @@ class C3dMapper(Mapping):
                 ):
                     return False
             else:
-                if dict1[key] != dict2[key]:
+                if isinstance(dict1[key], np.ndarray) and isinstance(dict2[key], np.ndarray):
+                    if not np.array_equal(dict1[key], dict2[key], equal_nan=True):
+                        return False
+                elif dict1[key] != dict2[key]:
                     return False
         return True
 

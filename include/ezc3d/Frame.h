@@ -23,6 +23,12 @@ public:
   ///
   EZC3D_API Frame();
 
+  ///
+  /// \brief Create a deep copy of a frame
+  /// \param frame The frame to copy
+  ///
+  EZC3D_API Frame clone() const;
+
   //---- STREAM ----//
 public:
   ///
@@ -37,16 +43,17 @@ public:
   ///
   /// \brief Write a frame to an opened file
   /// \param f Already opened fstream file with write access
-  /// \param pointScaleFactor The factor to scale the point data with
-  /// \param analogScaleFactors The factor to scale the analog data with
+  /// \param pointsInfo The points info to write the data with
+  /// \param analogsInfo The analogs info to write the data with
   /// \param dataTypeToWrite The type of data block (0 points/analogs, 1
   /// rotations)
   ///
   /// Write the frame to a file by calling sequentially the write method for
   /// points and analogs
   ///
-  EZC3D_API void write(std::fstream &f, std::vector<double> pointScaleFactor,
-                       std::vector<double> analogScaleFactors,
+  EZC3D_API void write(std::fstream &f,
+                       const ezc3d::DataNS::Points3dNS::Info &pointsInfo,
+                       const ezc3d::DataNS::AnalogsNS::Info &analogsInfo,
                        int dataTypeToWrite) const;
 
   //---- POINTS ----//
@@ -54,11 +61,13 @@ protected:
   std::shared_ptr<ezc3d::DataNS::Points3dNS::Points>
       _points; ///< All the points for this frame
 public:
+#ifndef SWIG
   ///
   /// \brief Return a reference to all the points
   /// \return Reference to all the points
   ///
   EZC3D_API const ezc3d::DataNS::Points3dNS::Points &points() const;
+#endif
 
   ///
   /// \brief Return a reference to all the points in order to be modified by the
@@ -75,11 +84,13 @@ protected:
   std::shared_ptr<ezc3d::DataNS::AnalogsNS::Analogs>
       _analogs; ///< All the subframes for all the analogs
 public:
+#ifndef SWIG
   ///
   /// \brief Return a reference to all the analogs
   /// \return Reference to all the analogs
   ///
   EZC3D_API const ezc3d::DataNS::AnalogsNS::Analogs &analogs() const;
+#endif
 
   ///
   /// \brief Return a reference to all the analogs in order to be modified by
@@ -97,11 +108,13 @@ protected:
       _rotations; ///< All the rotations for this frame
 
 public:
+#ifndef SWIG
   ///
   /// \brief Return a reference to all the rotations
   /// \return Reference to all the rotations
   ///
   EZC3D_API const ezc3d::DataNS::RotationNS::Rotations &rotations() const;
+#endif
 
   ///
   /// \brief Return a reference to all the rotations in order to be modified by

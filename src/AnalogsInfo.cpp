@@ -19,12 +19,13 @@ ezc3d::DataNS::AnalogsNS::Info::Info(const ezc3d::c3d &c3d)
   _processorType = c3d.parameters().processorType();
 
   if (c3d.header().nbAnalogs())
-    _scaleFactors = c3d.channelScales();
+    _scaleFactors = scaleFactorsFromC3d(c3d);
+
   _generalFactor = c3d.parameters()
                        .group("ANALOG")
                        .parameter("GEN_SCALE")
                        .valuesAsDouble()[0];
-  _zeroOffset = c3d.channelOffsets();
+  _zeroOffset = channelOffsetsFromC3d(c3d);
   for (int &offset : _zeroOffset) {
     offset = abs(offset);
   }
@@ -41,6 +42,40 @@ ezc3d::DataNS::AnalogsNS::Info::Info(const ezc3d::c3d &c3d)
         _zeroOffset.push_back(0);
     }
   }
+}
+
+std::vector<double> ezc3d::DataNS::AnalogsNS::Info::scaleFactorsFromC3d(
+    const ezc3d::c3d &c3d) const {
+  std::vector<double> scaleFactors =
+      c3d.parameters().group("ANALOG").parameter("SCALE").valuesAsDouble();
+  int i = 2;
+  while (c3d.parameters().group("ANALOG").isParameter("SCALE" +
+                                                      std::to_string(i))) {
+    const auto &scales_tp = c3d.parameters()
+                                .group("ANALOG")
+                                .parameter("SCALE" + std::to_string(i))
+                                .valuesAsDouble();
+    scaleFactors.insert(scaleFactors.end(), scales_tp.begin(), scales_tp.end());
+    ++i;
+  }
+  return scaleFactors;
+}
+
+std::vector<int> ezc3d::DataNS::AnalogsNS::Info::channelOffsetsFromC3d(
+    const ezc3d::c3d &c3d) const {
+  std::vector<int> offsets =
+      c3d.parameters().group("ANALOG").parameter("OFFSET").valuesAsInt();
+  int i = 2;
+  while (c3d.parameters().group("ANALOG").isParameter("OFFSET" +
+                                                      std::to_string(i))) {
+    const auto &offsets_tp = c3d.parameters()
+                                 .group("ANALOG")
+                                 .parameter("OFFSET" + std::to_string(i))
+                                 .valuesAsInt();
+    offsets.insert(offsets.end(), offsets_tp.begin(), offsets_tp.end());
+    ++i;
+  }
+  return offsets;
 }
 
 ezc3d::PROCESSOR_TYPE ezc3d::DataNS::AnalogsNS::Info::processorType() const {

@@ -30,6 +30,12 @@ public:
   EZC3D_API Analogs(ezc3d::c3d &c3d, std::fstream &file,
                     const AnalogsNS::Info &info);
 
+  ///
+  /// \brief Create a deep copy of an Analogs class
+  /// \return A deep copy of the Analogs class
+  ///
+  EZC3D_API Analogs clone() const;
+
   //---- STREAM ----//
 public:
   ///
@@ -44,12 +50,13 @@ public:
   ///
   /// \brief Write the subframes to an opened file
   /// \param f Already opened fstream file with write access
-  /// \param scaleFactors The factor to scale the data with
+  /// \param analogsInfo The information about the analogs
   ///
   /// Write all the subframes to a file by calling sequentially the write method
   /// of each subframe
   ///
-  EZC3D_API void write(std::fstream &f, std::vector<double> scaleFactors) const;
+  EZC3D_API void write(std::fstream &f,
+                       const ezc3d::DataNS::AnalogsNS::Info &analogsInfo) const;
 
   //---- SUBFRAME ----//
 protected:
@@ -69,6 +76,7 @@ public:
   ///
   EZC3D_API void nbSubframes(size_t nbSubframes);
 
+#ifndef SWIG
   ///
   /// \brief Get a particular subframe of index idx from the analogous data set
   /// \param idx The index of the subframe
@@ -81,6 +89,7 @@ public:
   ///
   EZC3D_API const ezc3d::DataNS::AnalogsNS::SubFrame &
   subframe(size_t idx) const;
+#endif
 
   ///
   /// \brief Get a particular subframe of index idx from the analogous data set

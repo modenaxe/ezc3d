@@ -37,6 +37,13 @@ public:
   EZC3D_API Points(ezc3d::c3d &c3d, std::fstream &file,
                    const Points3dNS::Info &info);
 
+  ///
+  /// \brief Create a deep copy of a Points class
+  /// \param points The Points class to copy
+  /// \return A deep copy of the Points class
+  ///
+  EZC3D_API Points clone() const;
+
   //---- STREAM ----//
 public:
   ///
@@ -51,12 +58,13 @@ public:
   ///
   /// \brief Write points to an opened file
   /// \param f Already opened fstream file with write access
-  /// \param scaleFactor The factor to scale the data with
+  /// \param pointsInfo The points info to write the data with
   ///
   /// Write all the points to a file by calling sequentially the write method of
   /// each point
   ///
-  EZC3D_API void write(std::fstream &f, std::vector<double> scaleFactor) const;
+  EZC3D_API void write(std::fstream &f,
+                       const ezc3d::DataNS::Points3dNS::Info &pointsInfo) const;
 
   //---- POINT ----//
 protected:
@@ -69,6 +77,7 @@ public:
   ///
   EZC3D_API size_t nbPoints() const;
 
+#ifndef SWIG
   ///
   /// \brief Get a particular point of index idx from the 3D points data
   /// \param idx The index of the point
@@ -78,6 +87,7 @@ public:
   /// frames
   ///
   EZC3D_API const ezc3d::DataNS::Points3dNS::Point &point(size_t idx) const;
+#endif
 
   ///
   /// \brief Get a particular point of index idx from the 3D points data in

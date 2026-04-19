@@ -29,6 +29,12 @@ public:
   EZC3D_API Parameter(const std::string &name = "",
                       const std::string &description = "");
 
+  ///
+  /// \brief Create a deep copy of a parameter
+  /// \return A deep copy of the parameter
+  ///
+  EZC3D_API Parameter clone() const;
+
   //---- STREAM ----//
 public:
   ///
@@ -43,8 +49,9 @@ public:
   /// \param groupIdx Index of the group that this particular parameter is in
   /// \param dataStartPositionToFill The position in the file where the data
   /// start (special case for POINT:DATA_START and ROTATION:DATA_START
-  /// parameters) \param dataStartType The type of data start (-1 no data start,
-  /// 0 points, 1 rotations)
+  /// parameters)
+  /// \param dataStartType The type of data start (-1 no data start, 0 points,
+  /// 1 rotations)
   ///
   /// Write the parameter and its values to a file
   ///
@@ -190,6 +197,16 @@ public:
   /// \return The type of the data
   ///
   EZC3D_API ezc3d::DATA_TYPE type() const;
+
+  ///
+  /// \brief Force a cast on the type for the data, effectively changing its
+  /// type. This can only be done for switching between int and float. Other
+  /// types casting will raise an exception. Obviously, this is cause loss of
+  /// data if the original type is float and the new type is int and decimal are
+  /// present. No checks are done in this regard.
+  /// \param type The type to set for the data
+  ///
+  EZC3D_API void staticCastType(ezc3d::DATA_TYPE newType);
 
   ///
   /// \brief Return the vector of values of the parameter

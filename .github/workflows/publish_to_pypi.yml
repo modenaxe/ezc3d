@@ -18,8 +18,8 @@ jobs:
           - os: macos-latest
             label: osx-64
             prefix: /Users/runner/miniconda3/envs/ezc3d
-          - os: macos-13
-            label: osx-32
+          - os: macos-26-intel
+            label: osx-intel
             prefix: /Users/runner/miniconda3/envs/ezc3d
           - os: windows-latest
             label: win-64
@@ -32,7 +32,7 @@ jobs:
         
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1
@@ -54,14 +54,14 @@ jobs:
         run: | 
           conda install python pip -cconda-forge
           conda list
-          pip install build cibuildwheel==2.21.3
+          pip install build cibuildwheel==3.4.1
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.21.3
+        uses: pypa/cibuildwheel@v3.4.1
         with:
           config-file: "pyproject.toml"
         env:
-          CIBW_SKIP: "*-manylinux_i686 *-musllinux_i686"
+          CIBW_SKIP: "*-manylinux_i686 *-musllinux_i686 *t-win*"
           CIBW_BEFORE_BUILD: >-
             rm -rf _skbuild
 

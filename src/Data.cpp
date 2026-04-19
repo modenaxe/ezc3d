@@ -80,6 +80,13 @@ ezc3d::DataNS::Data::Data(ezc3d::c3d &c3d, std::fstream &file) {
   }
 }
 
+ezc3d::DataNS::Data ezc3d::DataNS::Data::clone() const {
+  Data copy;
+  for (const auto &frame : _frames)
+    copy._frames.push_back(frame.clone());
+  return copy;
+}
+
 void ezc3d::DataNS::Data::print() const {
   for (size_t i = 0; i < nbFrames(); ++i) {
     std::cout << "Frame " << i << "\n";
@@ -90,19 +97,19 @@ void ezc3d::DataNS::Data::print() const {
 
 void ezc3d::DataNS::Data::write(
     const ezc3d::Header &header, std::fstream &f,
-    std::vector<double> pointScaleFactor,
-    std::vector<double> analogScaleFactors,
+    const ezc3d::DataNS::Points3dNS::Info &pointsInfo,
+    const ezc3d::DataNS::AnalogsNS::Info &analogsInfo,
     ezc3d::DataStartInfo &dataStartInfoToFill) const {
 
   dataStartInfoToFill.setPointDataStart(f.tellg());
   for (size_t i = 0; i < nbFrames(); ++i)
-    frame(i).write(f, pointScaleFactor, analogScaleFactors, 0);
+    frame(i).write(f, pointsInfo, analogsInfo, 0);
 
   if (header.hasRotationalData()) {
     ezc3d::c3d::moveCursorToANewBlock(f);
     dataStartInfoToFill.setRotationsDataStart(f.tellg());
     for (size_t i = 0; i < nbFrames(); ++i)
-      frame(i).write(f, pointScaleFactor, analogScaleFactors, 1);
+      frame(i).write(f, pointsInfo, analogsInfo, 1);
   }
 }
 

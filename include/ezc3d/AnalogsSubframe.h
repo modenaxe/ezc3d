@@ -32,6 +32,13 @@ public:
   EZC3D_API SubFrame(ezc3d::c3d &c3d, std::fstream &file,
                      const AnalogsNS::Info &info);
 
+  ///
+  /// \brief Create a deep copy of a subframe
+  /// \param subframe The subframe to copy
+  /// \return A deep copy of the subframe
+  ///
+  EZC3D_API SubFrame clone() const;
+
   //---- STREAM ----//
 public:
   ///
@@ -46,12 +53,13 @@ public:
   ///
   /// \brief Write the subframe to an opened file
   /// \param f Already opened fstream file with write access
-  /// \param scaleFactors The factor to scale the data with
+  /// \param analogsInfo The information about the analogs
   ///
   /// Write the subframe to a file by calling sequentially the write method of
   /// all of the analog channels
   ///
-  EZC3D_API void write(std::fstream &f, std::vector<double> scaleFactors) const;
+  EZC3D_API void write(std::fstream &f,
+                       const ezc3d::DataNS::AnalogsNS::Info &analogsInfo) const;
 
   //---- CHANNELS ----//
 protected:
@@ -71,6 +79,7 @@ public:
   ///
   EZC3D_API void nbChannels(size_t nChannels);
 
+#ifndef SWIG
   ///
   /// \brief Get a particular analog channel of index idx from the analogous
   /// data \param idx Index of the analog channel \return The analog channel
@@ -81,6 +90,7 @@ public:
   /// channels
   ///
   EZC3D_API const ezc3d::DataNS::AnalogsNS::Channel &channel(size_t idx) const;
+#endif
 
   ///
   /// \brief Get a particular analog channel of index idx from the analogous

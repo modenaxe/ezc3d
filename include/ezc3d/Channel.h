@@ -37,6 +37,12 @@ public:
   EZC3D_API Channel(ezc3d::c3d &c3d, std::fstream &file,
                     const AnalogsNS::Info &info, size_t channelIndex);
 
+  ///
+  /// \brief Create a deep copy of a channel
+  /// \return A deep copy of the channel
+  ///
+  EZC3D_API Channel clone() const;
+
   //---- STREAM ----//
 public:
   ///
@@ -50,11 +56,14 @@ public:
   ///
   /// \brief Write the channel to an opened file
   /// \param f Already opened fstream file with write access
-  /// \param scaleFactor The factor to scale the data with
+  /// \param analogsInfo The information about the analogs
+  /// \param channelIndex The index of the channel currently written
   ///
   /// Write the value of the analog data to a file
   ///
-  EZC3D_API void write(std::fstream &f, double scaleFactor) const;
+  EZC3D_API void write(std::fstream &f,
+                       const ezc3d::DataNS::AnalogsNS::Info &analogsInfo,
+                       size_t channelIndex) const;
 
   //---- DATA ----//
 protected:

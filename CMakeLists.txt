@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(ezc3d VERSION 1.6.3)
+project(ezc3d VERSION 1.7.0)
 
 option(BUILD_SHARED_LIBS "Choose if build should be a dynamic or static library" ON)
 # Option to allow checking of size for matrix getter (slower but safer if activated)
@@ -11,8 +11,9 @@ option(BUILD_EXAMPLE "Build a C++ example" ON)
 option(BUILD_DOC "Build documentation" OFF)
 option(GET_OFFICIAL_DOCUMENTATION "Automatically download the C3D documentation" OFF)
 option(BUILD_TESTS "Build all tests." OFF) # Makes boolean 'test' available.
-option(BINDER_PYTHON3 "Build Python SWIG module" OFF)
+option(BINDER_CSHARP "Build CSharp SWIG module" OFF)
 option(BINDER_MATLAB "Build Matlab module" OFF)
+option(BINDER_PYTHON3 "Build Python SWIG module" OFF)
 
 set(EZC3D_NAME ${PROJECT_NAME})
 set(EZC3D_ROOT_FOLDER ${PROJECT_SOURCE_DIR})
@@ -70,7 +71,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     VISIBILITY_INLINES_HIDDEN ON
 )
 
-if(NOT BUILD_SHARED_LIBS AND (BINDER_PYTHON3 OR BINDER_MATLAB))
+if(NOT BUILD_SHARED_LIBS AND (BINDER_CSHARP OR BINDER_MATLAB OR BINDER_PYTHON3))
     # static ezc3d must be PIC for bindings (always shared)
     set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()
@@ -155,6 +156,9 @@ add_subdirectory(binding)
 # Examples
 if (BUILD_EXAMPLE)
     add_subdirectory(examples)
+    if (BINDER_CSHARP)
+        add_subdirectory(examples/csharp)
+    endif()
 endif()
 
 
@@ -175,6 +179,9 @@ endif()
 # Testing
 if (BUILD_TESTS)
     add_subdirectory(test)
+    if (BINDER_CSHARP)
+        add_subdirectory(test/csharp)
+    endif()
 endif()
 
 if(EMSCRIPTEN)

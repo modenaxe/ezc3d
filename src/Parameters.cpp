@@ -103,6 +103,21 @@ ezc3d::ParametersNS::Parameters::Parameters(ezc3d::c3d &c3d, std::fstream &file)
   setMandatoryParameters();
 }
 
+ezc3d::ParametersNS::Parameters ezc3d::ParametersNS::Parameters::clone() const {
+  Parameters copy;
+  copy._parametersStart = _parametersStart;
+  copy._checksum = _checksum;
+  copy._nbParamBlock = _nbParamBlock;
+  copy._processorType = _processorType;
+
+  // Remove the mandatory groups that are automatically added by the constructor
+  copy._groups.clear();
+  for (const auto &grp : _groups) {
+    copy._groups.push_back(grp.clone());
+  }
+  return copy;
+}
+
 bool ezc3d::ParametersNS::Parameters::isMandatory(
     const std::string &groupName) {
   if (!groupName.compare("POINT") || !groupName.compare("ANALOG") ||
@@ -449,25 +464,23 @@ ezc3d::ParametersNS::Parameters::prepareCopyForWriting(
   analogScaleFactorParam.set(analogScaleFactor);
   params.group("ANALOG").parameter(analogScaleFactorParam);
 
-  // Use Intel floating with no extra scaling
-  ezc3d::ParametersNS::GroupNS::Parameter genScale(
-      params.group("ANALOG").parameter("GEN_SCALE"));
-  genScale.set(1.0);
-  params.group("ANALOG").parameter(genScale);
-
   size_t cmp = 1;
   std::string mod = "";
-  do {
-    auto offset(params.group("ANALOG").parameter("OFFSET" + mod));
-    std::vector<int> offsetValues(offset.valuesAsInt().size());
-    for (size_t i = 0; i < offsetValues.size(); ++i) {
-      offsetValues[i] = 0;
-    }
-    offset.set(offsetValues);
-    params.group("ANALOG").parameter(offset);
-    ++cmp;
-    mod = std::to_string(cmp);
-  } while (params.group("ANALOG").isParameter("OFFSET" + mod));
+  bool offsetIsEmpty =
+      params.group("ANALOG").parameter("OFFSET").valuesAsInt().size() == 0;
+  if (offsetIsEmpty) {
+    do {
+      auto offset(params.group("ANALOG").parameter("OFFSET" + mod));
+      std::vector<int> offsetValues(offset.valuesAsInt().size());
+      for (size_t i = 0; i < offsetValues.size(); ++i) {
+        offsetValues[i] = 0;
+      }
+      offset.set(offsetValues);
+      params.group("ANALOG").parameter(offset);
+      ++cmp;
+      mod = std::to_string(cmp);
+    } while (params.group("ANALOG").isParameter("OFFSET" + mod));
+  }
 
   // Add the parameter EZC3D:VERSION and EZC3D:CONTACT
   if (!params.isGroup("EZC3D")) {

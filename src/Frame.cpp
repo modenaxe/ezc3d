@@ -17,19 +17,30 @@ ezc3d::DataNS::Frame::Frame() {
   _rotations = std::make_shared<ezc3d::DataNS::RotationNS::Rotations>();
 }
 
+ezc3d::DataNS::Frame ezc3d::DataNS::Frame::clone() const {
+  Frame copy;
+  copy._points =
+      std::make_shared<ezc3d::DataNS::Points3dNS::Points>(_points->clone());
+  copy._analogs =
+      std::make_shared<ezc3d::DataNS::AnalogsNS::Analogs>(_analogs->clone());
+  copy._rotations = std::make_shared<ezc3d::DataNS::RotationNS::Rotations>(
+      _rotations->clone());
+  return copy;
+}
+
 void ezc3d::DataNS::Frame::print() const {
   points().print();
   analogs().print();
   rotations().print();
 }
 
-void ezc3d::DataNS::Frame::write(std::fstream &f,
-                                 std::vector<double> pointScaleFactor,
-                                 std::vector<double> analogScaleFactors,
-                                 int dataTypeToWrite) const {
+void ezc3d::DataNS::Frame::write(
+    std::fstream &f, const ezc3d::DataNS::Points3dNS::Info &pointsInfo,
+    const ezc3d::DataNS::AnalogsNS::Info &analogsInfo,
+    int dataTypeToWrite) const {
   if (dataTypeToWrite == 0) { // Points and analogs
-    points().write(f, pointScaleFactor);
-    analogs().write(f, analogScaleFactors);
+    points().write(f, pointsInfo);
+    analogs().write(f, analogsInfo);
   } else if (dataTypeToWrite == 1) { // Rotations
     rotations().write(f);
   } else {
@@ -78,7 +89,8 @@ void ezc3d::DataNS::Frame::add(
 
 void ezc3d::DataNS::Frame::add(
     const ezc3d::DataNS::RotationNS::Rotations &rotations) {
-  _rotations = std::make_shared<ezc3d::DataNS::RotationNS::Rotations>(rotations);
+  _rotations =
+      std::make_shared<ezc3d::DataNS::RotationNS::Rotations>(rotations);
 }
 
 void ezc3d::DataNS::Frame::add(

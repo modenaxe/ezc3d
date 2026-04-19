@@ -20,6 +20,19 @@ ezc3d::ParametersNS::GroupNS::Parameter::Parameter(
     : _name(name), _description(description), _isLocked(false),
       _data_type(ezc3d::DATA_TYPE::NO_DATA_TYPE), _isEmpty(true) {}
 
+ezc3d::ParametersNS::GroupNS::Parameter
+ezc3d::ParametersNS::GroupNS::Parameter::clone() const {
+  Parameter copy(_name, _description);
+  copy._isLocked = _isLocked;
+  copy._data_type = _data_type;
+  copy._dimension = _dimension;
+  copy._isEmpty = _isEmpty;
+  copy._param_data_int = _param_data_int;
+  copy._param_data_double = _param_data_double;
+  copy._param_data_string = _param_data_string;
+  return copy;
+}
+
 void ezc3d::ParametersNS::GroupNS::Parameter::print() const {
   std::cout << "parameterName = " << name() << "\n";
   std::cout << "isLocked = " << isLocked() << "\n";
@@ -330,6 +343,32 @@ void ezc3d::ParametersNS::GroupNS::Parameter::setEmptyFlag() {
 
 ezc3d::DATA_TYPE ezc3d::ParametersNS::GroupNS::Parameter::type() const {
   return _data_type;
+}
+
+void ezc3d::ParametersNS::GroupNS::Parameter::staticCastType(
+    ezc3d::DATA_TYPE newType) {
+  if (newType == _data_type)
+    return;
+
+  if ((newType != DATA_TYPE::INT && newType != DATA_TYPE::FLOAT) ||
+      (_data_type != DATA_TYPE::INT && _data_type != DATA_TYPE::FLOAT)) {
+    throw std::invalid_argument(
+        "staticCastType can only be used to switch between INT and FLOAT");
+  }
+
+  if (newType == DATA_TYPE::INT) {
+    _data_type = newType;
+    _param_data_int.clear();
+    for (unsigned int i = 0; i < _param_data_double.size(); ++i)
+      _param_data_int.push_back(static_cast<int>(_param_data_double[i]));
+    _param_data_double.clear();
+  } else if (newType == DATA_TYPE::FLOAT) {
+    _data_type = newType;
+    _param_data_double.clear();
+    for (unsigned int i = 0; i < _param_data_int.size(); ++i)
+      _param_data_double.push_back(static_cast<double>(_param_data_int[i]));
+    _param_data_int.clear();
+  }
 }
 
 void ezc3d::ParametersNS::GroupNS::Parameter::set(int data) {

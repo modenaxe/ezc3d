@@ -75,6 +75,12 @@ public:
   EZC3D_API c3d(const std::string &filePath,
                 const Options &options = Options());
 
+  ///
+  /// \brief Create a deep copy of a C3D
+  /// \return A deep copy of the C3D
+  ///
+  EZC3D_API c3d clone() const;
+
   //---- STREAM ----//
 public:
   ///
@@ -329,12 +335,6 @@ public:
   EZC3D_API const std::vector<std::string> pointNames() const;
 
   ///
-  /// \brief Get a copy of the scales of the points
-  /// \return The reference to the scales of the points
-  ///
-  EZC3D_API const std::vector<double> pointScales() const;
-
-  ///
   /// \brief Get the index of a point in the points holder
   /// \param pointName Name of the point
   /// \return The index of the point
@@ -351,18 +351,6 @@ public:
   /// \return The names of the analog channels
   ///
   EZC3D_API const std::vector<std::string> channelNames() const;
-
-  ///
-  /// \brief Get a copy of the scales of the channels
-  /// \return The reference to the scales of the channels
-  ///
-  EZC3D_API const std::vector<double> channelScales() const;
-
-  ///
-  /// \brief Get a copy of the offsets of the channels
-  /// \return The reference to the offsets of the channels
-  ///
-  EZC3D_API const std::vector<int> channelOffsets() const;
 
   ///
   /// \brief Get the index of a analog channel in the subframe

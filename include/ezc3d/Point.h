@@ -32,10 +32,18 @@ public:
   /// \brief Create a filled Point class from a given file
   /// \param c3d Reference to the c3d to copy the data in
   /// \param file File to copy the data from
-  /// \param info The information about the points
+  /// \param pointsInfo The information about the points
+  /// \param pointIndex The index of the point currently created
   ///
   EZC3D_API Point(ezc3d::c3d &c3d, std::fstream &file,
-                  const Points3dNS::Info &info);
+                  const Points3dNS::Info &pointsInfo, size_t pointIndex);
+
+  ///
+  /// \brief Create a deep copy of a Point class
+  /// \param point The Point class to copy
+  /// \return A deep copy of the Point class
+  ///
+  EZC3D_API Point clone() const;
 
   //---- STREAM ----//
 public:
@@ -50,11 +58,14 @@ public:
   ///
   /// \brief Write the point to an opened file
   /// \param f Already opened fstream file with write access
-  /// \param scaleFactor The factor to scale the data with
+  /// \param pointsInfo The information about the points
+  /// \param pointIndex The index of the point currently written
   ///
   /// Write the values of the point to a file
   ///
-  EZC3D_API void write(std::fstream &f, float scaleFactor) const;
+  EZC3D_API void write(std::fstream &f,
+                       const ezc3d::DataNS::Points3dNS::Info &pointsInfo,
+                       size_t pointIndex) const;
 
   //---- DATA ----//
 protected:

@@ -31,6 +31,12 @@ public:
   ///
   EZC3D_API Data(ezc3d::c3d &c3d, std::fstream &file);
 
+  ///
+  /// \brief Create a deep copy of a Data
+  /// \return A deep copy of the Data
+  ///
+  EZC3D_API Data clone() const;
+
   //---- STREAM ----//
 public:
   ///
@@ -46,16 +52,16 @@ public:
   /// \brief Write all the data to an opened file
   /// \param The header of a c3d
   /// \param f Already opened fstream file with write access
-  /// \param pointScaleFactor The factor to scale the point data with
-  /// \param analogScaleFactors The factors to scale the analog data with
+  /// \param pointsInfo The points info to write the data with
+  /// \param analogsInfo The analogs info to write the data with
   /// \param dataStartInfoToFill The start position to fill
   ///
   /// Write all the data to a file by calling sequentially all the write method
   /// for all the frames
   ///
   EZC3D_API void write(const ezc3d::Header &header, std::fstream &f,
-                       std::vector<double> pointScaleFactor,
-                       std::vector<double> analogScaleFactors,
+                       const ezc3d::DataNS::Points3dNS::Info &pointsInfo,
+                       const ezc3d::DataNS::AnalogsNS::Info &analogsInfo,
                        ezc3d::DataStartInfo &dataStartInfoToFill) const;
 
   //---- FRAME ----//
@@ -69,6 +75,7 @@ public:
   ///
   EZC3D_API size_t nbFrames() const;
 
+#ifndef SWIG
   ///
   /// \brief Get the frame of index idx
   /// \param idx The index of the frame
@@ -80,6 +87,7 @@ public:
   /// frames
   ///
   EZC3D_API const ezc3d::DataNS::Frame &frame(size_t idx) const;
+#endif
 
   ///
   /// \brief Get the frame of index idx in order to be modified by the caller

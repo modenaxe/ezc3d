@@ -100,6 +100,46 @@ def test_create_c3d():
     assert c3d["data"]["analogs"].shape == (1, 0, 0)
 
 
+def test_eq():
+    rng = np.random.default_rng(42)
+
+    # Create two identical c3d objects
+    c3d1 = ezc3d.c3d()
+    c3d2 = ezc3d.c3d()
+    assert c3d1 == c3d2
+
+    # Fill both with the same data
+    point_names = ("point1", "point2")
+    points = rng.random((4, len(point_names), 100))
+    points[3, :, :] = 1
+
+    analog_names = ("analog1", "analog2")
+    analogs = rng.random((1, len(analog_names), 1000))
+
+    for c in (c3d1, c3d2):
+        c["parameters"]["POINT"]["RATE"]["value"] = [100]
+        c["parameters"]["POINT"]["LABELS"]["value"] = point_names
+        c["data"]["points"] = points.copy()
+        c["parameters"]["ANALOG"]["RATE"]["value"] = [1000]
+        c["parameters"]["ANALOG"]["LABELS"]["value"] = analog_names
+        c["data"]["analogs"] = analogs.copy()
+
+    assert c3d1 == c3d2
+
+    # Deepcopy should also be equal
+    c3d3 = deepcopy(c3d1)
+    assert c3d1 == c3d3
+
+    # Modify only analogs (not points) — verifies all data keys are compared
+    c3d3["data"]["analogs"][0, 0, 0] += 999
+    assert not (c3d1 == c3d3)
+
+    # Modify only parameters (not header) — verifies all top-level keys are compared
+    c3d4 = deepcopy(c3d1)
+    c3d4["parameters"]["POINT"]["RATE"]["value"] = [200]
+    assert not (c3d1 == c3d4)
+
+
 def test_deepcopy():
     # Load an empty c3d structure
     c3d = ezc3d.c3d()
@@ -522,14 +562,23 @@ def c3d_build_rebuild_all(request):
     base_folder = Path("test/c3dTestFiles")
     orig_file = Path(base_folder / (request.param + ".c3d"))
     rebuild_file = Path(base_folder / (request.param + "_after.c3d"))
+    rerebuild_file = Path(base_folder / (request.param + "_after_after.c3d"))
+    rererebuild_file = Path(base_folder / (request.param + "_after_after_after.c3d"))
 
     original = ezc3d.c3d(orig_file.as_posix())
     original.write(rebuild_file.as_posix())
     rebuilt = ezc3d.c3d(rebuild_file.as_posix())
 
-    yield (original, rebuilt)
+    rebuilt.write(rerebuild_file.as_posix())
+    rerebuilt = ezc3d.c3d(rerebuild_file.as_posix())
+
+    # We must write as it updates some internal values that will be compared
+    rerebuilt.write(rererebuild_file.as_posix())
+
+    yield (original, rebuilt, rerebuilt)
 
     Path.unlink(rebuild_file)
+    Path.unlink(rerebuild_file)
 
 
 @pytest.fixture(scope="module", params=["BTS", "Optotrak", "Qualisys", "Vicon", "C3DRotationExample"])
@@ -552,12 +601,18 @@ def c3d_build_rebuild_reduced(request):
 def test_parse_and_rebuild(c3d_build_rebuild_all):
     for i in c3d_build_rebuild_all:
         assert isinstance(i, ezc3d.c3d)
-    orig, rebuilt = c3d_build_rebuild_all
-    assert orig == rebuilt
+
+    # We must compare the rebuilt to the rerebuilt because internal elements are corrected from the original twice
+    orig, rebuilt, rerebuilt = c3d_build_rebuild_all
+
+    # But make sure they are as close as possible (parameters are the only updated elements)
+    assert orig["header"] == rebuilt["header"] == rerebuilt["header"]
+    assert orig["data"] == rebuilt["data"] == rerebuilt["data"]
+    assert rebuilt == rerebuilt
 
 
 def test_parse_and_rebuild_header(c3d_build_rebuild_all):
-    orig, rebuilt = c3d_build_rebuild_all
+    orig, rebuilt, _ = c3d_build_rebuild_all
     assert orig["header"] == rebuilt["header"]
 
 
@@ -608,5 +663,6 @@ def test_parse_and_rebuild_parameters(c3d_build_rebuild_reduced):
 
 
 def test_parse_and_rebuild_data(c3d_build_rebuild_all):
-    orig, rebuilt = c3d_build_rebuild_all
+    orig, rebuilt, _ = c3d_build_rebuild_all
+    print(orig["data"])
     assert orig["data"] == rebuilt["data"]

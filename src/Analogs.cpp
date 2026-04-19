@@ -23,6 +23,14 @@ ezc3d::DataNS::AnalogsNS::Analogs::Analogs(ezc3d::c3d &c3d, std::fstream &file,
   }
 }
 
+ezc3d::DataNS::AnalogsNS::Analogs
+ezc3d::DataNS::AnalogsNS::Analogs::clone() const {
+  Analogs copy;
+  for (const auto &subframe : _subframe)
+    copy._subframe.push_back(subframe.clone());
+  return copy;
+}
+
 void ezc3d::DataNS::AnalogsNS::Analogs::print() const {
   for (size_t i = 0; i < nbSubframes(); ++i) {
     std::cout << "Subframe = " << i << "\n";
@@ -32,9 +40,9 @@ void ezc3d::DataNS::AnalogsNS::Analogs::print() const {
 }
 
 void ezc3d::DataNS::AnalogsNS::Analogs::write(
-    std::fstream &f, std::vector<double> scaleFactors) const {
+    std::fstream &f, const ezc3d::DataNS::AnalogsNS::Info &analogsInfo) const {
   for (size_t i = 0; i < nbSubframes(); ++i) {
-    subframe(i).write(f, scaleFactors);
+    subframe(i).write(f, analogsInfo);
   }
 }
 
@@ -50,7 +58,7 @@ const ezc3d::DataNS::AnalogsNS::SubFrame &
 ezc3d::DataNS::AnalogsNS::Analogs::subframe(size_t idx) const {
   try {
     return _subframe.at(idx);
-  } catch (const std::out_of_range&) {
+  } catch (const std::out_of_range &) {
     throw std::out_of_range(
         "Analogs::subframe method is trying to access the subframe " +
         std::to_string(idx) + " while the maximum number of subframes is " +
@@ -62,7 +70,7 @@ ezc3d::DataNS::AnalogsNS::SubFrame &
 ezc3d::DataNS::AnalogsNS::Analogs::subframe(size_t idx) {
   try {
     return _subframe.at(idx);
-  } catch (const std::out_of_range&) {
+  } catch (const std::out_of_range &) {
     throw std::out_of_range(
         "Analogs::subframe method is trying to access the subframe " +
         std::to_string(idx) + " while the maximum number of subframes is " +

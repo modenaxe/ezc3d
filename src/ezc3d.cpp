@@ -8,11 +8,13 @@
 ///
 
 #include "ezc3d/ezc3d.h"
+#include "ezc3d/AnalogsInfo.h"
 #include "ezc3d/Data.h"
 #include "ezc3d/DataStartInfo.h"
 #include "ezc3d/Header.h"
 #include "ezc3d/Options.h"
 #include "ezc3d/Parameters.h"
+#include "ezc3d/PointsInfo.h"
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
@@ -62,7 +64,8 @@ ezc3d::c3d::c3d(const std::string &filePath, const Options &options)
 
   // Read all the section
   _header = std::make_shared<ezc3d::Header>(*this, stream);
-  _parameters = std::make_shared<ezc3d::ParametersNS::Parameters>(*this, stream);
+  _parameters =
+      std::make_shared<ezc3d::ParametersNS::Parameters>(*this, stream);
 
    // INITIALISE PARAMETERS REQUIRED FOR WASM USE
       // method is private :(
@@ -81,6 +84,17 @@ ezc3d::c3d::c3d(const std::string &filePath, const Options &options)
 
   // Close the file
   stream.close();
+}
+
+ezc3d::c3d ezc3d::c3d::clone() const {
+  c3d copy;
+  copy._filePath = _filePath;
+  copy.options = options.clone();
+  copy._header = std::make_shared<ezc3d::Header>(_header->clone());
+  copy._parameters =
+      std::make_shared<ezc3d::ParametersNS::Parameters>(_parameters->clone());
+  copy._data = std::make_shared<ezc3d::DataNS::Data>(_data->clone());
+  return copy;
 }
 
 void ezc3d::c3d::print() const {
@@ -104,10 +118,9 @@ void ezc3d::c3d::write(const std::string &filePath,
       parameters().write(writeOptions, f, dataStartInfoToFill, header()));
 
   // Write the data (Should the scales be taken from p?)
-  std::vector<double> pointScaleFactor(pointScales());
-  std::vector<double> pointAnalogFactors(channelScales());
-  data().write(header(), f, pointScaleFactor, pointAnalogFactors,
-               dataStartInfoToFill);
+  ezc3d::DataNS::Points3dNS::Info pointsInfo(*this);
+  ezc3d::DataNS::AnalogsNS::Info analogsInfo(*this);
+  data().write(header(), f, pointsInfo, analogsInfo, dataStartInfoToFill);
 
   // Go back and write all the required data start
   writeDataStart(f, dataStartInfoToFill);
@@ -167,24 +180,24 @@ void ezc3d::c3d::writeDataStart(
 
   if (dataStartPosition.hasHeaderPointDataStart()) {
     f.seekg(dataStartPosition.headerPointDataStart());
-    int nBlocksToNext = int(dataStartPosition.pointDataStart()) / 512 +
-                        1; // DATA_START is 1-based
+    // DATA_START is 1-based
+    int nBlocksToNext = int(dataStartPosition.pointDataStart()) / 512 + 1;
     f.write(reinterpret_cast<const char *>(&nBlocksToNext),
             dataStartPosition.headerPointDataStartSize());
   }
 
   if (dataStartPosition.hasParameterPointDataStart()) {
     f.seekg(dataStartPosition.parameterPointDataStart());
-    int nBlocksToNext = int(dataStartPosition.pointDataStart()) / 512 +
-                        1; // DATA_START is 1-based
+    // DATA_START is 1-based
+    int nBlocksToNext = int(dataStartPosition.pointDataStart()) / 512 + 1;
     f.write(reinterpret_cast<const char *>(&nBlocksToNext),
             dataStartPosition.parameterPointDataStartSize());
   }
 
   if (dataStartPosition.hasParameterRotationsDataStart()) {
     f.seekg(dataStartPosition.parameterRotationsDataStart());
-    int nBlocksToNext = int(dataStartPosition.rotationsDataStart()) / 512 +
-                        1; // DATA_START is 1-based
+    // DATA_START is 1-based
+    int nBlocksToNext = int(dataStartPosition.rotationsDataStart()) / 512 + 1;
     f.write(reinterpret_cast<const char *>(&nBlocksToNext),
             dataStartPosition.parameterRotationsDataStartSize());
   }
@@ -392,21 +405,6 @@ const std::vector<std::string> ezc3d::c3d::pointNames() const {
   return labels;
 }
 
-const std::vector<double> ezc3d::c3d::pointScales() const {
-  std::vector<double> scales =
-      parameters().group("POINT").parameter("SCALE").valuesAsDouble();
-  int i = 2;
-  while (parameters().group("POINT").isParameter("SCALE" + std::to_string(i))) {
-    const auto &scales_tp = parameters()
-                                .group("POINT")
-                                .parameter("SCALE" + std::to_string(i))
-                                .valuesAsDouble();
-    scales.insert(scales.end(), scales_tp.begin(), scales_tp.end());
-    ++i;
-  }
-  return scales;
-}
-
 size_t ezc3d::c3d::pointIdx(const std::string &pointName) const {
   const std::vector<std::string> &currentNames(pointNames());
   for (size_t i = 0; i < currentNames.size(); ++i)
@@ -432,38 +430,6 @@ const std::vector<std::string> ezc3d::c3d::channelNames() const {
     ++i;
   }
   return labels;
-}
-
-const std::vector<double> ezc3d::c3d::channelScales() const {
-  std::vector<double> scales =
-      parameters().group("ANALOG").parameter("SCALE").valuesAsDouble();
-  int i = 2;
-  while (
-      parameters().group("ANALOG").isParameter("SCALE" + std::to_string(i))) {
-    const auto &scales_tp = parameters()
-                                .group("ANALOG")
-                                .parameter("SCALE" + std::to_string(i))
-                                .valuesAsDouble();
-    scales.insert(scales.end(), scales_tp.begin(), scales_tp.end());
-    ++i;
-  }
-  return scales;
-}
-
-const std::vector<int> ezc3d::c3d::channelOffsets() const {
-  std::vector<int> offsets =
-      parameters().group("ANALOG").parameter("OFFSET").valuesAsInt();
-  int i = 2;
-  while (
-      parameters().group("ANALOG").isParameter("OFFSET" + std::to_string(i))) {
-    const auto &offsets_tp = parameters()
-                                 .group("ANALOG")
-                                 .parameter("OFFSET" + std::to_string(i))
-                                 .valuesAsInt();
-    offsets.insert(offsets.end(), offsets_tp.begin(), offsets_tp.end());
-    ++i;
-  }
-  return offsets;
 }
 
 size_t ezc3d::c3d::channelIdx(const std::string &channelName) const {
@@ -796,21 +762,20 @@ void ezc3d::c3d::updateHeader() {
       data().frame(0).analogs().nbSubframes() != 0) {
     if (data().frame(0).analogs().nbSubframes() != header().nbAnalogByFrame())
       _header->nbAnalogByFrame(data().frame(0).analogs().nbSubframes());
-  } else if (
-      static_cast<size_t>(pointRate) != 0
-       && static_cast<size_t>(analog.parameter("RATE").valuesAsDouble()[0] / pointRate) != header().nbAnalogByFrame()
-    ) {
-      if (header().nbAnalogByFrame() == 1 && parameters().isGroup("SHADOW")) {
-        // The SHADOW company is not following the standard so they did not
-        // set analog rate ezc3d automatically sets it to zero which results
-        // in a discrepancy
-        ezc3d::ParametersNS::GroupNS::Parameter &analogNonConst =
-            _parameters->group("ANALOG").parameter("RATE");
-        analogNonConst.set(static_cast<float>(header().nbAnalogByFrame()));
-      } else {
-        _header->nbAnalogByFrame(static_cast<size_t>(
-            analog.parameter("RATE").valuesAsDouble()[0] / pointRate));
-      }
+  } else if (static_cast<size_t>(pointRate) != 0 &&
+             static_cast<size_t>(analog.parameter("RATE").valuesAsDouble()[0] /
+                                 pointRate) != header().nbAnalogByFrame()) {
+    if (header().nbAnalogByFrame() == 1 && parameters().isGroup("SHADOW")) {
+      // The SHADOW company is not following the standard so they did not
+      // set analog rate ezc3d automatically sets it to zero which results
+      // in a discrepancy
+      ezc3d::ParametersNS::GroupNS::Parameter &analogNonConst =
+          _parameters->group("ANALOG").parameter("RATE");
+      analogNonConst.set(static_cast<float>(header().nbAnalogByFrame()));
+    } else {
+      _header->nbAnalogByFrame(static_cast<size_t>(
+          analog.parameter("RATE").valuesAsDouble()[0] / pointRate));
+    }
   }
 
   if (static_cast<size_t>(analog.parameter("USED").valuesAsInt()[0]) !=
@@ -1046,6 +1011,30 @@ void ezc3d::c3d::updateParameters(const std::vector<std::string> &newPoints,
         ++i;
       }
     }
+  }
+
+  // Deal with ACTUAL_START_FIELD and ACTUAL_END_FIELD from VICON, if they are
+  // present
+  bool isVicon = parameters().isGroup("MANUFACTURER") &&
+                 parameters().group("MANUFACTURER").isParameter("COMPANY") &&
+                 parameters()
+                         .group("MANUFACTURER")
+                         .parameter("COMPANY")
+                         .valuesAsString()
+                         .at(0)
+                         .find("Vicon") != std::string::npos;
+  if (isVicon &&
+      parameters().group("TRIAL").isParameter("ACTUAL_START_FIELD")) {
+    // Make sure "ACTUAL_START_FIELD" is of type INT
+    _parameters->group("TRIAL")
+        .parameter("ACTUAL_START_FIELD")
+        .staticCastType(ezc3d::DATA_TYPE::INT);
+  }
+  if (isVicon && parameters().group("TRIAL").isParameter("ACTUAL_END_FIELD")) {
+    // Make sure "ACTUAL_END_FIELD" is of type INT
+    _parameters->group("TRIAL")
+        .parameter("ACTUAL_END_FIELD")
+        .staticCastType(ezc3d::DATA_TYPE::INT);
   }
 
   // Adjust some ROTATION parameters

@@ -31,6 +31,12 @@ public:
   EZC3D_API Rotations(ezc3d::c3d &c3d, std::fstream &file,
                       const RotationNS::Info &info);
 
+  ///
+  /// \brief Create a deep copy of a Rotations
+  /// \return A deep copy of the Rotations
+  ///
+  EZC3D_API Rotations clone() const;
+
   //---- STREAM ----//
 public:
   ///
@@ -70,6 +76,7 @@ public:
   ///
   EZC3D_API void nbSubframes(size_t nbSubframes);
 
+#ifndef SWIG
   ///
   /// \brief Get a particular subframe of index idx from the rotation data set
   /// \param idx The index of the subframe
@@ -82,6 +89,7 @@ public:
   ///
   EZC3D_API const ezc3d::DataNS::RotationNS::SubFrame &
   subframe(size_t idx) const;
+#endif
 
   ///
   /// \brief Get a particular subframe of index idx from the rotation data set
